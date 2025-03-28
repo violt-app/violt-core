@@ -1,125 +1,52 @@
-# Violt Core - Open-Source Smart Home Automation
+# Violt Core Lite MVP
 
-## Overview
+**Violt Core Lite** is the open-source foundation of the Violt Smart Home Automation platform. This local-first MVP offers private, offline control of smart home devices with future extensibility for AI integration.
 
-**Violt Core** is an **open-source, privacy-first smart home automation
-platform** that runs locally, ensuring **full data security** without cloud
-dependency. It supports **Zigbee, Z-Wave, Wi-Fi, MQTT, and Matter**, enabling
-**custom automations, real-time monitoring, and API integrations** on
-**self-hosted devices** like Raspberry Pi and NUC. 🚀
+## 🚀 Key Features
 
-### **Key Features**
+- Fully offline smart home engine
+- Supports Zigbee, Z-Wave, Wi-Fi, MQTT, Matter
+- YAML/JSON-based rule engine
+- REST & MQTT APIs
+- Docker-ready for edge devices (Raspberry Pi, NUC)
 
-✅ Local execution (no cloud required)
-✅ Device support for **Wi-Fi, MQTT, Zigbee, Z-Wave**
-✅ Web & mobile UI for managing devices and automations
-✅ Extensible API for third-party integrations
-✅ Automation engine (event-driven rules-based system)
-✅ Secure **end-to-end encryption**
-✅ Robotics (coming soon)
+## 📦 Project Structure
 
-## **Getting Started**
-
-### **Prerequisites**
-
-- Python 3.10+
-- Node.js 18+
-- PostgreSQL or SQLite (for local setup)
-- Docker (optional for containerized deployment)
-- MQTT Broker (e.g., Mosquitto)
-
-### **Installation**
-
-#### **1️⃣ Clone the Repository**
-
-```sh
-git clone https://github.com/yourusername/violt-core.git
-cd violt-core
+```md
+└── 📁violt-core
+    └── 📁.github
+    └── 📁config
+    └── 📁docs
+        └── SECURITY.md
+    └── 📁scripts
+    └── 📁src
+        └── 📁api
+        └── 📁automation
+        └── 📁database
+        └── 📁devices
+        └── 📁mobile
+        └── 📁security
+        └── 📁tests
+        └── 📁ui
+    └── .gitignore
+    └── BACKLOG.md
+    └── LICENSE
+    └── README.md
 ```
 
-### **2️⃣ Set Up Virtual Environment (Backend)**
+## 🛠️ Getting Started
 
-```sh
-python3 -m venv venv
-source venv/bin/activate  # Linux/macOS
-venv\Scripts\activate  # Windows
-pip install -r requirements.txt
-```
+1. Clone the repo  
+   `git clone https://github.com/yourusername/violt-core-lite.git`
+2. Install dependencies  
+   `npm install` or `pip install -r requirements.txt` (based on stack)
+3. Run locally  
+   `npm run dev` or `python main.py`
 
-### **3️⃣ Start the Backend**
+## 🔒 License
 
-```sh
-uvicorn src.api.main:app --reload
-```
+This project is licensed under the **GNU AGPL v3**. See `LICENSE` for details.
 
-### **4️⃣ Start the Web UI**
+## 🧠 About Violt
 
-```sh
-cd src/ui
-npm install
-npm run dev
-```
-
-## **API Documentation**
-
-Violt Core provides a RESTful API for managing devices, automations, and system
-configurations.
-
-📌 Full API Documentation: Swagger Docs
-
-## **Community & Contributions**
-
-Violt Core is open-source and welcomes contributions! Read our Contribution
-Guide for details.
-
-### **1️⃣ License**
-
-Licensed under Apache 2.0 – Free to use, modify, and extend.
-
-### **2️⃣ CONTRIBUTING.md (Violt Core)**
-
-## Contributing to Violt Core
-
-Thank you for your interest in contributing to Violt Core! This guide outlines
-the contribution process.
-
-## **How to Contribute**
-
-1️⃣ **Fork the Repository**
-
-2️⃣ **Create a Feature Branch**
-
-```sh
-git checkout -b feature-new-device-support
-```
-
-3️⃣ **Make Your Changes & Run Tests**
-
-4️⃣ **Submit a Pull Request (PR)**
-
-### **3️⃣ Code Guidelines**
-
-- Follow PEP 8 for Python code
-- Use ESLint + Prettier for JavaScript
-- Write unit tests for new functionality
-
-### **4️⃣ Reporting Issues**
-
-- Use the GitHub Issues tab for bug reports and feature requests.
-
-### **5️⃣ SECURITY.md (Violt Core)**
-
-### **Security Policy - Violt Core**
-
-## **Security Best Practices**
-
-- **Encryption:** All data transmissions use TLS 1.3.
-- **Authentication:** API endpoints require JWT authentication.
-- **Local Storage:** User data remains on-device unless explicitly synced.
-
-## **Reporting Security Issues**
-
-If you find a vulnerability, please **email <security@violt.app>** instead of
-opening a public issue.
-
-[Backlog](https://github.com/violt-app/violt-core/blob/main/BACKLOG.md)
+Violt is an AI-powered smart home automation platform offering privacy-first local control (Violt Core) with optional AI automation via the Violt AI cloud.
