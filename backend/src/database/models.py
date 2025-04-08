@@ -14,13 +14,14 @@ from sqlalchemy import (
     JSON,
     Text,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 import uuid
 from datetime import datetime
 
 from .session import Base
 
+Base = declarative_base()
 
 def generate_uuid():
     """Generate a UUID string."""
