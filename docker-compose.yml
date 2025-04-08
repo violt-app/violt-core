@@ -1,0 +1,85 @@
+# version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Use named volumes for cross-platform compatibility
+      - violt-config:/app/config
+      - violt-data:/app/data
+      - violt-logs:/app/logs
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=sqlite:///./data/violt.db
+      - SECRET_KEY=${SECRET_KEY:-default_dev_key_change_in_production}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+      - DEBUG=${DEBUG:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - MONGODB_ENABLED=${MONGODB_ENABLED:-false}
+      - MONGODB_URI=${MONGODB_URI:-}
+      - DEVICE_DISCOVERY_INTERVAL=300
+      - AUTOMATION_CHECK_INTERVAL=10
+      # Add platform detection environment variable
+      - PLATFORM=${PLATFORM:-auto}
+    networks:
+      - violt-network
+    # Add healthcheck for better container monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/system/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Use container name for service discovery in Docker network
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      # Fallback for external access
+      - NEXT_PUBLIC_EXTERNAL_API_URL=http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - violt-network
+    # Add healthcheck for better container monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  violt-network:
+    driver: bridge
+
+# Use named volumes for cross-platform compatibility
+volumes:
+  violt-config:
+    name: violt-config
+  violt-data:
+    name: violt-data
+  violt-logs:
+    name: violt-logs
+
+# Add .env file support with defaults
+# Create a .env.example file with these defaults
+# SECRET_KEY=your_secret_key_here
+# DEBUG=false
+# LOG_LEVEL=info
+# MONGODB_ENABLED=false
+# MONGODB_URI=mongodb://localhost:27017/violt
+# PLATFORM=auto

@@ -1,0 +1,52 @@
+# Core dependencies
+fastapi>=0.104.0
+uvicorn>=0.23.2
+python-dotenv>=1.0.0
+pydantic>=2.4.2
+pydantic-settings>=2.0.3
+sqlalchemy>=2.0.22
+sqlalchemy[asyncio]>=2.0.22
+sqlalchemy[future]>=2.0.22
+alembic>=1.12.0
+aiosqlite>=0.19.0
+asyncio>=3.4.3
+psutil>=5.9.5
+astral>=2.3.1
+alembic>=1.12.0  # Fixed version specification
+alembic[asyncio]>=1.12.0  # Added asyncio support
+pydantic_settings>=2.0.3  # Fixed version specification
+
+# Authentication and security
+python-jose>=3.3.0
+passlib>=1.7.4
+bcrypt>=4.0.1
+python-multipart>=0.0.6
+
+# WebSockets and real-time
+websockets>=11.0.3
+
+# Background tasks
+apscheduler>=3.10.4
+
+# MongoDB integration
+motor>=3.3.1
+pymongo>=4.5.0
+
+# Device integration
+aiohttp>=3.8.5
+pyyaml>=6.0.1
+python-miio>=0.5.12  # For Xiaomi device integration
+
+# Testing
+pytest>=7.4.2
+pytest-asyncio>=0.21.1
+httpx>=0.25.0
+pytest-cov>=4.1.0
+
+# Utilities
+loguru>=0.7.2
+tenacity>=8.2.3
+
+# Email Validation
+pydantic[email]
+email-validator>=2.0.0
