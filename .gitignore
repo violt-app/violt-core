@@ -1,46 +1,90 @@
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# .gitignore for Violt Core Lite
 
 # Python
 __pycache__/
 *.py[cod]
-*.egg-info/
+*$py.class
+*.so
+.Python
 env/
-venv/
-
-# macOS
-.DS_Store
-
-# Logs
-*.log
-
-# Environment
-.env
-.env.*
-
-# OS
-Thumbs.db
-
-# Build
-dist/
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+venv/
+ENV/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.pnpm-debug.log
+.next/
 out/
+.nuxt/
+.cache/
+.output/
+.turbo/
 
-# IDEs
-.vscode/
-.idea/
-
-# Docker
-*.pid
-docker-compose.override.yml
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Database
-*.sqlite
 *.db
+*.sqlite
+*.sqlite3
 
-# Misc
-coverage/
-*.bak
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS specific
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Docker
+.docker/
+
+# Application specific
+data/
+uploads/
