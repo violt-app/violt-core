@@ -6,14 +6,15 @@ This module handles database connection and session management using SQLAlchemy.
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool
 from pathlib import Path
 import os
 import logging
+import asyncio
 
 from ..core.config import settings, DEFAULT_DATA_DIR
 
-logger = logging.getLogger(__name__) # Add logger
+logger = logging.getLogger(__name__)  # Add logger
 
 # Create SQLAlchemy base class for models
 Base = declarative_base()
@@ -48,7 +49,7 @@ def get_database_url():
 engine = create_async_engine(
     get_database_url(),
     connect_args=settings.DATABASE_CONNECT_ARGS,
-    poolclass=StaticPool,
+    poolclass=NullPool,
     echo=settings.DEBUG,
 )
 
@@ -67,3 +68,20 @@ async def get_db():
             yield session
         finally:
             await session.close()
+
+
+async def create_database_tables():
+    """Create all database tables defined by SQLAlchemy models."""
+    logger.info("Creating database tables...")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Database tables created successfully")
+
+
+async def initialize_database():
+    """Initialize the database, ensuring all tables exist."""
+    try:
+        await create_database_tables()
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}", exc_info=True)
+        raise

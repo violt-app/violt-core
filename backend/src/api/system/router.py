@@ -113,13 +113,13 @@ async def get_last_event_time(db: AsyncSession) -> Optional[datetime]:
 @router.get("/status", response_model=SystemStatus)
 async def get_system_status(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
 ):
     """Get overall system status, version, uptime, and entity counts."""
     uptime_delta = datetime.utcnow() - STARTUP_TIME
     uptime_str = format_uptime(uptime_delta)
 
-    device_count, automation_count = await get_db_counts(db, current_user.id)
+    device_count = 0 # Placeholder
+    automation_count = 0 # Placeholder
     last_event_time = await get_last_event_time(db)
 
     # Get connected WebSocket clients (example, needs actual implementation in websocket manager)

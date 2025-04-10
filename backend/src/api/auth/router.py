@@ -59,11 +59,11 @@ async def register_user(user_data: UserCreate, db: AsyncSession = Depends(get_db
     # Create new user
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
+        name=user_data.name,
         username=user_data.username,
         email=user_data.email,
         password_hash=hashed_password,
         terms_accepted=user_data.terms_accepted,
-        settings={ENVIRONMENT: user_data.environment},
     )
 
     db.add(new_user)

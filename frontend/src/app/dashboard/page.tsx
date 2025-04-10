@@ -85,7 +85,7 @@ function DashboardContent() {
             <CpuIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isLoading ? "..." : `${systemStatus?.cpu_usage.toFixed(1)}%`}</div>
+            <div className="text-2xl font-bold">{isLoading ? "..." : `${systemStatus?.cpu_usage?.toFixed(1)}%`}</div>
             <p className="text-xs text-muted-foreground">
               System load
             </p>
@@ -97,7 +97,7 @@ function DashboardContent() {
             <MemoryIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isLoading ? "..." : `${systemStatus?.memory_usage.toFixed(1)}%`}</div>
+            <div className="text-2xl font-bold">{isLoading ? "..." : `${systemStatus?.memory_usage?.toFixed(1)}%`}</div>
             <p className="text-xs text-muted-foreground">
               Available memory
             </p>
@@ -175,7 +175,7 @@ function DashboardContent() {
                 </div>
                 <div className="flex justify-between">
                   <div className="text-sm font-medium">Disk Usage</div>
-                  <div className="text-sm">{systemStatus?.disk_usage.toFixed(1) || 0}%</div>
+                  <div className="text-sm">{systemStatus?.disk_usage?.toFixed(1) || 0}%</div>
                 </div>
                 <div className="flex justify-between">
                   <div className="text-sm font-medium">Connected Clients</div>

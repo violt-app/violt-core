@@ -1,13 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 
-interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
-  type: "login" | "register";
+interface UserAuthFormProps extends Readonly<React.HTMLAttributes<HTMLDivElement>> {
+  readonly type: "login" | "register";
 }
 
 export function UserAuthForm({
@@ -15,12 +17,15 @@ export function UserAuthForm({
   type,
   ...props
 }: UserAuthFormProps) {
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     name: "",
+    username: "",
     email: "",
     password: "",
     confirmPassword: "",
+    termsAccepted: false,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,7 +35,7 @@ export function UserAuthForm({
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setIsLoading(true);
+    //setIsLoading(true);
 
     try {
       // Validate form
@@ -40,36 +45,63 @@ export function UserAuthForm({
         }
       }
 
-      // Submit to API
-      const endpoint = type === "login" ? "/api/auth/login" : "/api/auth/register";
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Authentication failed");
+      if (type === "login") {
+        login(formData.username, formData.password);
       }
 
-      // Handle successful authentication
-      const data = await response.json();
-      // Store token in localStorage
-      localStorage.setItem("authToken", data.token);
-      // Redirect to dashboard
-      window.location.href = "/dashboard";
-    } catch (error) {
-      console.error("Authentication error:", error);
-      // Handle error (show message to user)
-    } finally {
+      // Submit to API
+      // const endpoint = type === "login" ? "/api/auth/login" : "/api/auth/register";
+      // let requestBody: BodyInit;
+      // let headers: HeadersInit = {};
+
+      // if (type === "login") {
+      //   headers = {
+      //     "Content-Type": "application/x-www-form-urlencoded",
+      //   };
+      //   requestBody = new URLSearchParams({
+      //     username: formData.username,
+      //     password: formData.password,
+      //   });
+      // } else { // Register
+      //   headers = {
+      //     "Content-Type": "application/json",
+      //   };
+      //   // Ensure all required fields are present
+      //   if (!formData.name || !formData.username || !formData.email || !formData.password || typeof formData.termsAccepted === 'undefined') {
+      //     throw new Error("Missing required registration fields");
+      //   }
+      //   requestBody = JSON.stringify({
+      //     name: formData.name,
+      //     username: formData.username,
+      //     email: formData.email,
+      //     password: formData.password,
+      //     terms_accepted: formData.termsAccepted,
+      //   });
+      // }
+
+      // console.log(requestBody)
+
+      // const response = await fetch("http://localhost:8000" + endpoint, {
+      //   method: "POST",
+      //   headers: headers,
+      //   body: requestBody,
+      // });
+
       setIsLoading(false);
+
+      // if (!response.ok) {
+      //   const error = await response.json();
+      //   throw new Error(error.message || "Authentication failed");
+      // }
+
+      // // Handle successful authentication
+      // console.log(type === 'login' ? 'Login successful:' : 'Registration successful:', await response.json());
+      // // Example: Redirect to dashboard after login
+      // if (type === 'login') router.push('/dashboard');
+    } catch (error: any) {
+      setIsLoading(false);
+      console.error("Authentication error:", error);
+      // TODO: Show error message to the user
     }
   }
 
@@ -96,21 +128,39 @@ export function UserAuthForm({
             </div>
           )}
           <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
-              id="email"
-              name="email"
-              placeholder="name@example.com"
-              type="email"
+              id="username"
+              name="username"
+              placeholder="username"
+              type="text"
               autoCapitalize="none"
-              autoComplete="email"
+              autoComplete="username"
               autoCorrect="off"
               disabled={isLoading}
-              value={formData.email}
+              value={formData.username}
               onChange={handleChange}
               required
             />
           </div>
+          {type === "register" && (
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                placeholder="name@example.com"
+                type="email"
+                autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect="off"
+                disabled={isLoading}
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="password">Password</Label>
             <Input
@@ -137,6 +187,20 @@ export function UserAuthForm({
                 disabled={isLoading}
                 value={formData.confirmPassword}
                 onChange={handleChange}
+                required
+              />
+            </div>
+          )}
+          {type === "register" && (
+            <div className="grid gap-2">
+              <Label htmlFor="termsAccepted">Terms Accepted</Label>
+              <Input
+                id="termsAccepted"
+                name="termsAccepted"
+                type="checkbox"
+                disabled={isLoading}
+                checked={formData.termsAccepted}
+                onChange={(e) => setFormData((prev) => ({ ...prev, termsAccepted: e.target.checked }))}
                 required
               />
             </div>
