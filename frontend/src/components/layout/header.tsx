@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,13 +13,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
-  className?: string;
-  title?: string;
-  subtitle?: string;
-  actions?: ReactNode;
+  readonly className?: string;
+  readonly title?: string;
+  readonly subtitle?: string;
+  readonly actions?: ReactNode;
 }
 
 export function Header({ className, title, subtitle, actions }: HeaderProps) {
+  const { logout } = useAuth();
+  const handleLogout = () => {
+    logout();
+  };
+  
   return (
     <div className={cn("flex h-16 items-center px-4 md:px-6", className)}>
       <div className="flex items-center md:hidden">
@@ -74,7 +80,7 @@ export function Header({ className, title, subtitle, actions }: HeaderProps) {
             <DropdownMenuItem>Profile</DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Log out</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout} >Log out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -82,7 +88,7 @@ export function Header({ className, title, subtitle, actions }: HeaderProps) {
   );
 }
 
-function MenuIcon({ className }: { className?: string }) {
+function MenuIcon({ className }: { readonly className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
