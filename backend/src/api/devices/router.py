@@ -69,7 +69,7 @@ async def log_event(
         logger.error(f"Failed to log event {event_type}: {e}")
 
 
-@router.get("/", response_model=List[DeviceResponse])
+@router.get("/all", response_model=List[DeviceResponse])
 async def list_devices(
     location: Optional[str] = None,
     type: Optional[str] = None,
@@ -99,7 +99,7 @@ async def list_devices(
     return devices
 
 
-@router.post("/", response_model=DeviceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/create", response_model=DeviceResponse, status_code=status.HTTP_201_CREATED)
 async def create_device(
     device_data: DeviceCreate,
     db: AsyncSession = Depends(get_db),
@@ -588,6 +588,7 @@ async def discover_devices(
         None, description="Limit discovery to a specific integration type"
     ),
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Trigger device discovery across specified or all integrations.
@@ -605,7 +606,6 @@ async def discover_devices(
         )
 
         # Filter out devices already added by the user
-        db = next(get_db())  # Get DB session synchronously (not ideal for async)
         result = await db.execute(
             select(Device.config, Device.integration_type).where(
                 Device.user_id == current_user.id

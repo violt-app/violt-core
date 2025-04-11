@@ -1,19 +1,30 @@
 import Link from "next/link";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 interface SidebarProps {
-  className?: string;
+  readonly className?: string;
 }
 
 interface SidebarItemProps {
-  href: string;
-  icon: ReactNode;
-  children: ReactNode;
-  active?: boolean;
+    readonly href: string;
+    readonly icon: ReactNode;
+  readonly children: ReactNode;
+  readonly active?: boolean;
 }
 
 export function Sidebar({ className }: SidebarProps) {
+  const { user, isLoading, checkAuth } = useAuth();
+
+  useEffect(() => {
+      checkAuth();
+  }, [checkAuth]);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className={cn("flex flex-col h-full", className)}>
       <div className="px-3 py-4">
@@ -45,8 +56,8 @@ export function Sidebar({ className }: SidebarProps) {
             U
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium">User Name</p>
-            <p className="text-xs text-muted-foreground">user@example.com</p>
+            <p className="text-sm font-medium">{user ? user.email : <span>Something is wrong!</span>}</p>
+            <p className="text-xs text-muted-foreground">{user ? user.name : <span>Something is wrong!</span>}</p>
           </div>
         </div>
       </div>
