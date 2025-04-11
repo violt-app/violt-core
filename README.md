@@ -1,3 +1,5 @@
+[![Violt Core CI](https://github.com/violt-app/violt-core/actions/workflows/ci.yml/badge.svg)](https://github.com/violt-app/violt-core/actions/workflows/ci.yml)
+
 # Violt Core Lite
 
 Violt Core Lite is a local-only, open-source smart home automation platform designed to run on both Raspberry Pi and Windows systems. It provides a comprehensive solution for managing smart home devices, creating automation rules, and integrating with popular platforms like Xiaomi devices, Amazon Alexa, and Google Home.
