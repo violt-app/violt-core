@@ -47,6 +47,18 @@ export function UserAuthForm({
 
       if (type === "login") {
         login(formData.username, formData.password);
+      } else if (type === "register") {
+        // Ensure all required fields are present
+        if (!formData.name || !formData.username || !formData.email || !formData.password || typeof formData.termsAccepted === 'undefined') {
+          throw new Error("Missing required registration fields");
+        }
+        register({
+          name: formData.name,
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          termsAccepted: formData.termsAccepted,
+        });
       }
 
       // Submit to API
