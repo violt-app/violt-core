@@ -23,6 +23,7 @@ class BaseSchema(BaseModel):
 # User schemas
 class UserBase(BaseSchema):
     """Base schema for user data."""
+    name: str = Field(..., min_length=3, max_length=50)
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
 
@@ -46,6 +47,7 @@ class UserCreate(UserBase):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
+                "name": "John Doe",
                 "username": "johndoe",
                 "email": "john.doe@example.com",
                 "password": "SecurePass123",
@@ -57,11 +59,12 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseSchema):
     """Schema for user update."""
+    name: Optional[str] = Field(None, min_length=3, max_length=50)
     username: Optional[str] = Field(None, min_length=3, max_length=50)
     email: Optional[EmailStr] = None
     settings: Optional[Dict[str, Any]] = None
 
-
+    
 class UserInDB(UserBase):
     """Schema for user in database."""
     id: str

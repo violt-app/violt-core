@@ -30,21 +30,6 @@ ENV PORT=8000
 # Add platform detection with default to auto-detect
 ENV PLATFORM=auto
 
-# Create entrypoint script for platform-specific initialization
-RUN echo '#!/bin/sh\n\
-# Detect platform if set to auto\n\
-if [ "$PLATFORM" = "auto" ]; then\n\
-    export PLATFORM=$(uname -s | tr "[:upper:]" "[:lower:]")\n\
-    echo "Auto-detected platform: $PLATFORM"\n\
-fi\n\
-\n\
-# Create required directories\n\
-mkdir -p /app/data /app/logs /app/config\n\
-\n\
-# Run the application\n\
-exec uvicorn src.main:app --host $HOST --port $PORT\n\
-' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
-
 # Initialize Alembic environment (creates 'migrations' folder and alembic.ini)
 # RUN alembic init migrations
 # RUN alembic revision --autogenerate -m "Initial migration"
@@ -55,5 +40,5 @@ exec uvicorn src.main:app --host $HOST --port $PORT\n\
 # Expose the application port
 EXPOSE 8000
 
-# Run the application using the entrypoint script
-CMD ["/app/entrypoint.sh"]
+# Run the application directly using uvicorn
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

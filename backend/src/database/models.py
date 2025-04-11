@@ -14,14 +14,12 @@ from sqlalchemy import (
     JSON,
     Text,
 )
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 from datetime import datetime
 
 from .session import Base
-
-Base = declarative_base()
 
 def generate_uuid():
     """Generate a UUID string."""
@@ -34,6 +32,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
