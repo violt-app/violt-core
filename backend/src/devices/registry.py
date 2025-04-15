@@ -188,8 +188,7 @@ def load_integration_modules():
     # Get the directory of this file using pathlib for cross-platform compatibility
     current_dir = Path(__file__).parent.absolute()
 
-    # Log the directory we're searching for modules``
-    logger.info(f"Searching for integration modules in: {current_dir}")
+    # Log the directory we're searching for modules
     logger.info(f"Subdirectories found: {os.listdir(current_dir)}")
 
     # Get all subdirectories (potential integration modules)
