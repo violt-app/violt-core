@@ -7,25 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
+import { Device, DeviceState, DeviceResponse } from "@/lib/devices";
 
 interface DeviceCardProps {
-  device: {
-    id: string;
-    name: string;
-    type: string;
-    manufacturer: string;
-    model?: string;
-    status: "online" | "offline";
-    state: Record<string, any>;
-    capabilities: string[];
-  };
+  device: Device;
+  deviceState: DeviceState;
+  deviceResponse: DeviceResponse;
   onToggle?: (id: string, state: boolean) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 }
 
-export function DeviceCard({ device, onToggle, onEdit, onDelete }: DeviceCardProps) {
-  const [isPowered, setIsPowered] = useState(device.state.power === "on");
+export function DeviceCard({ device, deviceState, deviceResponse, onToggle, onEdit, onDelete }: Readonly<DeviceCardProps>) {
+  // Ensure the `power` property is handled safely
+  const powerState = deviceState?.state?.power ?? "unknown"; // Default to 'unknown' if undefined
+  const capabilities = deviceResponse?.properties || [];
+  const [isPowered, setIsPowered] = useState(powerState === "on");
 
   const handleToggle = (checked: boolean) => {
     setIsPowered(checked);
@@ -54,37 +51,37 @@ export function DeviceCard({ device, onToggle, onEdit, onDelete }: DeviceCardPro
   };
 
   const getStateDisplay = () => {
-    const stateItems = [];
-
-    if (device.type === "light" || device.type === "bulb") {
-      if (device.state.brightness !== undefined) {
-        stateItems.push(`Brightness: ${device.state.brightness}%`);
-      }
-      if (device.state.color_temp !== undefined) {
-        stateItems.push(`Color Temp: ${device.state.color_temp}K`);
-      }
-    } else if (device.type === "thermostat") {
-      if (device.state.current_temperature !== undefined) {
-        stateItems.push(`Current: ${device.state.current_temperature}°C`);
-      }
-      if (device.state.target_temperature !== undefined) {
-        stateItems.push(`Target: ${device.state.target_temperature}°C`);
-      }
-      if (device.state.mode !== undefined) {
-        stateItems.push(`Mode: ${device.state.mode}`);
-      }
-    } else if (device.type === "sensor") {
-      if (device.state.temperature !== undefined) {
-        stateItems.push(`Temp: ${device.state.temperature}°C`);
-      }
-      if (device.state.humidity !== undefined) {
-        stateItems.push(`Humidity: ${device.state.humidity}%`);
-      }
-      if (device.state.motion !== undefined) {
-        stateItems.push(`Motion: ${device.state.motion ? "Detected" : "None"}`);
-      }
+    const stateItems: string[] = [];
+    if (["light", "bulb"].includes(device.type)) {
+        if (deviceState?.state?.brightness !== undefined) {
+            stateItems.push(`Brightness: ${deviceState?.state?.brightness}%`);
+        }
+        if (deviceState?.state?.color_temp !== undefined) {
+            stateItems.push(`Color Temp: ${deviceState?.state?.color_temp}K`);
+        }
     }
-
+    if (device.type === "thermostat") {
+        if (deviceState?.state?.current_temperature !== undefined) {
+            stateItems.push(`Current: ${deviceState?.state?.current_temperature}°C`);
+        }
+        if (deviceState?.state?.target_temperature !== undefined) {
+            stateItems.push(`Target: ${deviceState?.state?.target_temperature}°C`);
+        }
+        if (deviceState?.state?.mode !== undefined) {
+            stateItems.push(`Mode: ${deviceState?.state?.mode}`);
+        }
+    }
+    if (device.type === "sensor") {
+        if (deviceState?.state?.temperature !== undefined) {
+            stateItems.push(`Temp: ${deviceState?.state?.temperature}°C`);
+        }
+        if (deviceState?.state?.humidity !== undefined) {
+            stateItems.push(`Humidity: ${deviceState?.state?.humidity}%`);
+        }
+        if (deviceState?.state?.motion !== undefined) {
+            stateItems.push(`Motion: ${deviceState?.state?.motion ? "Detected" : "None"}`);
+        }
+    }
     return stateItems;
   };
 
@@ -103,27 +100,30 @@ export function DeviceCard({ device, onToggle, onEdit, onDelete }: DeviceCardPro
               </CardDescription>
             </div>
           </div>
-          <Badge variant={device.status === "online" ? "default" : "outline"}>
-            {device.status}
+          <Badge variant={deviceResponse?.status === "online" ? "default" : "outline"}>
+            {deviceResponse?.status}
           </Badge>
         </div>
       </CardHeader>
       <CardContent>
         <div className="grid gap-2">
-          {device.capabilities.includes("on_off") && (
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`power-${device.id}`}>Power</Label>
-              <Switch
-                id={`power-${device.id}`}
-                checked={isPowered}
-                onCheckedChange={handleToggle}
-                disabled={device.status === "offline"}
-              />
-            </div>
-          )}
+          {/* Ensure `capabilities` is defined before using `.includes()` */}
+
+          {
+            capabilities.includes("on_off") && (
+              <div className="flex items-center justify-between">
+                <Label htmlFor={`power-${device.id}`}>Power</Label>
+                <Switch
+                  id={`power-${device.id}`}
+                  checked={isPowered}
+                  onCheckedChange={handleToggle}
+                  disabled={deviceResponse?.status === "offline"}
+                />
+              </div>
+            )}
 
           {getStateDisplay().map((item, index) => (
-            <div key={index} className="flex items-center justify-between text-sm">
+            <div key={`${device.id}-${index}`} className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{item}</span>
             </div>
           ))}

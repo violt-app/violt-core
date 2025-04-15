@@ -6,7 +6,7 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDevices } from "@/lib/devices";
 import { useAutomations } from "@/lib/automations";
-import { useApi } from "@/lib/api";
+import { useApi, SystemStatus, SystemStats } from "@/lib/api";
 import { useEffect, useState } from "react";
 
 export default function DashboardPage() {
@@ -14,21 +14,13 @@ export default function DashboardPage() {
   return <DashboardContent />;
 }
 
-interface SystemStatus {
-  cpu_usage: number;
-  memory_usage: number;
-  version: string;
-  uptime: number;
-  disk_usage: number;
-  connected_clients: number;
-}
-
 function DashboardContent() {
   const { devices, isLoading: devicesLoading } = useDevices();
   const { automations, isLoading: automationsLoading } = useAutomations();
-  const { getSystemStatus } = useApi();
+  const { getSystemStatus, getSystemStats } = useApi();
 
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -44,7 +36,20 @@ function DashboardContent() {
     };
 
     fetchSystemStatus();
-  }, [getSystemStatus]);
+
+    const fetchSystemStats = async () => {
+      try {
+        const stats = await getSystemStats();
+        setSystemStats(stats);
+      } catch (error) {
+        console.error("Failed to fetch system stats:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSystemStats();
+  }, [getSystemStatus, getSystemStats]);
 
   const onlineDevices = devices?.filter(device => device.status === "online").length || 0;
   const enabledAutomations = automations?.filter(automation => automation.enabled).length || 0;
@@ -85,7 +90,7 @@ function DashboardContent() {
             <CpuIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isLoading ? "..." : `${systemStatus?.cpu_usage?.toFixed(1)}%`}</div>
+            <div className="text-2xl font-bold">{isLoading ? "..." : `${systemStats?.cpu_usage?.toFixed(1)}%`}</div>
             <p className="text-xs text-muted-foreground">
               System load
             </p>
@@ -97,7 +102,7 @@ function DashboardContent() {
             <MemoryIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isLoading ? "..." : `${systemStatus?.memory_usage?.toFixed(1)}%`}</div>
+            <div className="text-2xl font-bold">{isLoading ? "..." : `${systemStats?.memory_usage?.toFixed(1)}%`}</div>
             <p className="text-xs text-muted-foreground">
               Available memory
             </p>
@@ -167,19 +172,19 @@ function DashboardContent() {
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <div className="text-sm font-medium">Version</div>
-                  <div className="text-sm">{systemStatus?.version || "1.0.0"}</div>
+                  <div className="text-sm">{systemStatus?.version ?? "1.0.0"}</div>
                 </div>
                 <div className="flex justify-between">
                   <div className="text-sm font-medium">Uptime</div>
-                  <div className="text-sm">{formatUptime(systemStatus?.uptime || 0)}</div>
+                  <div className="text-sm">{systemStatus?.uptime ?? 0}</div>
                 </div>
                 <div className="flex justify-between">
                   <div className="text-sm font-medium">Disk Usage</div>
-                  <div className="text-sm">{systemStatus?.disk_usage?.toFixed(1) || 0}%</div>
+                  <div className="text-sm">{systemStats?.disk_usage?.toFixed(1) ?? 0}%</div>
                 </div>
                 <div className="flex justify-between">
                   <div className="text-sm font-medium">Connected Clients</div>
-                  <div className="text-sm">{systemStatus?.connected_clients || 1}</div>
+                  <div className="text-sm">{systemStats?.device_stats.length || 1}</div>
                 </div>
                 <div className="flex justify-between">
                   <div className="text-sm font-medium">Platform</div>
@@ -194,21 +199,7 @@ function DashboardContent() {
   );
 }
 
-function formatUptime(seconds: number): string {
-  const days = Math.floor(seconds / (3600 * 24));
-  const hours = Math.floor((seconds % (3600 * 24)) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  
-  if (days > 0) {
-    return `${days}d ${hours}h ${minutes}m`;
-  } else if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else {
-    return `${minutes}m`;
-  }
-}
-
-function DeviceIcon({ className }: { className?: string }) {
+function DeviceIcon({ className }: { readonly className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -227,7 +218,7 @@ function DeviceIcon({ className }: { className?: string }) {
   );
 }
 
-function AutomationIcon({ className }: { className?: string }) {
+function AutomationIcon({ className }: { readonly className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -251,7 +242,7 @@ function AutomationIcon({ className }: { className?: string }) {
   );
 }
 
-function CpuIcon({ className }: { className?: string }) {
+function CpuIcon({ className }: { readonly className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -277,7 +268,7 @@ function CpuIcon({ className }: { className?: string }) {
   );
 }
 
-function MemoryIcon({ className }: { className?: string }) {
+function MemoryIcon({ className }: { readonly className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

@@ -1,19 +1,31 @@
 import Link from "next/link";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { usePathname } from "next/navigation";
 
 interface SidebarProps {
-  className?: string;
+  readonly className?: string;
 }
 
 interface SidebarItemProps {
-  href: string;
-  icon: ReactNode;
-  children: ReactNode;
-  active?: boolean;
+  readonly href: string;
+  readonly icon: ReactNode;
+  readonly children: ReactNode;
+  readonly active?: boolean;
 }
 
 export function Sidebar({ className }: SidebarProps) {
+  const { user, isLoading, checkAuth } = useAuth();
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className={cn("flex flex-col h-full", className)}>
       <div className="px-3 py-4">
@@ -22,7 +34,7 @@ export function Sidebar({ className }: SidebarProps) {
           <span className="ml-2 text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">Lite</span>
         </Link>
         <nav className="space-y-1">
-          <SidebarItem href="/dashboard" icon={<DashboardIcon />} active>
+          <SidebarItem href="/dashboard" icon={<DashboardIcon />}>
             Dashboard
           </SidebarItem>
           <SidebarItem href="/devices" icon={<DevicesIcon />}>
@@ -45,8 +57,8 @@ export function Sidebar({ className }: SidebarProps) {
             U
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium">User Name</p>
-            <p className="text-xs text-muted-foreground">user@example.com</p>
+            <p className="text-sm font-medium">{user ? user.email : <span>Something is wrong!</span>}</p>
+            <p className="text-xs text-muted-foreground">{user ? user.name : <span>Something is wrong!</span>}</p>
           </div>
         </div>
       </div>
@@ -54,13 +66,15 @@ export function Sidebar({ className }: SidebarProps) {
   );
 }
 
-function SidebarItem({ href, icon, children, active }: SidebarItemProps) {
+function SidebarItem({ href, icon, children }: SidebarItemProps) {
+  const pathname = usePathname();
+  const isActive = pathname === href || pathname.startsWith(href + "/");
   return (
     <Link
       href={href}
       className={cn(
         "flex items-center px-3 py-2 text-sm font-medium rounded-md",
-        active
+        isActive
           ? "bg-primary/10 text-primary"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}

@@ -9,35 +9,46 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDevices } from "@/lib/devices";
 
 interface DeviceFormProps {
-  device?: {
-    id?: string;
-    name: string;
-    type: string;
-    manufacturer: string;
-    model: string;
-    ip_address?: string;
-    mac_address?: string;
-    integration_type: string;
+  readonly device?: {
+    readonly id?: string;
+    readonly name: string;
+    readonly type: string;
+    readonly manufacturer: string;
+    readonly model: string;
+    readonly ip_address?: string;
+    readonly mac_address?: string;
+    readonly integration_type: string;
+    readonly config?: {
+      readonly token?: string;
+    };
   };
-  onSubmit: (device: any) => void;
-  onCancel: () => void;
-  isLoading?: boolean;
+  readonly onSubmit: (device: any) => void;
+  readonly onCancel: () => void;
+  readonly isLoading?: boolean;
 }
+
+// Added a field for the config dictionary to align with the backend schema.
 
 export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: DeviceFormProps) {
   const [formData, setFormData] = useState({
-    name: device?.name || "",
-    type: device?.type || "light",
-    manufacturer: device?.manufacturer || "",
-    model: device?.model || "",
-    ip_address: device?.ip_address || "",
-    mac_address: device?.mac_address || "",
-    integration_type: device?.integration_type || "xiaomi",
+    name: device?.name ?? "",
+    type: device?.type ?? "light",
+    manufacturer: device?.manufacturer ?? "",
+    model: device?.model ?? "",
+    ip_address: device?.ip_address ?? "",
+    mac_address: device?.mac_address ?? "",
+    integration_type: device?.integration_type ?? "xiaomi",
+    config: device?.config ?? {}, // Added config field
   });
 
   const [activeTab, setActiveTab] = useState("manual");
+  const [isScanning, setIsScanning] = useState(false);
+  const [discoveredDevices, setDiscoveredDevices] = useState<string[]>([]);
+
+  const { discoverDevices } = useDevices();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -46,6 +57,17 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      config: {
+        ...prev.config,
+        [name]: value,
+      },
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -86,7 +108,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                     required
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="type">Device Type</Label>
                   <Select
@@ -107,7 +129,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="integration_type">Integration</Label>
                   <Select
@@ -124,7 +146,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="manufacturer">Manufacturer</Label>
                   <Input
@@ -135,7 +157,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                     onChange={handleChange}
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="model">Model</Label>
                   <Input
@@ -146,7 +168,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                     onChange={handleChange}
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="ip_address">IP Address</Label>
                   <Input
@@ -157,7 +179,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                     onChange={handleChange}
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="mac_address">MAC Address</Label>
                   <Input
@@ -166,6 +188,17 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                     placeholder="00:11:22:33:44:55"
                     value={formData.mac_address}
                     onChange={handleChange}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="config-token">Device Token</Label>
+                  <Input
+                    id="config-token"
+                    name="token"
+                    placeholder="Enter device token"
+                    value={formData.config.token || ""}
+                    onChange={handleConfigChange}
                   />
                 </div>
               </div>
@@ -179,12 +212,38 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                 <p className="text-center text-muted-foreground mb-4">
                   Violt will scan your network for compatible smart devices
                 </p>
-                <Button type="button" className="mb-4">
-                  Start Scanning
+                <Button type="button" className="mb-4" onClick={async () => {
+                  setIsScanning(true);
+                  setDiscoveredDevices([]);
+
+                  try {
+                    console.log("Scanning for devices...");
+                    const devices = await discoverDevices();
+                    console.log("Discovered devices:", devices);
+                    setDiscoveredDevices(devices);
+                  } catch (error) {
+                    console.error("Error scanning for devices:", error);
+                  } finally {
+                    setIsScanning(false);
+                  }
+                }} disabled={isScanning}>
+                  {isScanning ? "Scanning..." : "Start Scanning"}
                 </Button>
-                <div className="w-full border rounded-md p-4 text-center text-muted-foreground">
-                  No devices found. Make sure your devices are powered on and connected to the same network.
-                </div>
+                {discoveredDevices.length > 0 ? (
+                  <ul className="w-full border rounded-md p-4 text-center">
+                    {discoveredDevices.map((device) => (
+                      <li key={device} className="text-muted-foreground">
+                        {device}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="w-full border rounded-md p-4 text-center text-muted-foreground">
+                    {isScanning
+                      ? "Scanning for devices..."
+                      : "No devices found. Make sure your devices are powered on and connected to the same network."}
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
@@ -205,7 +264,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
   );
 }
 
-function SearchIcon({ className }: { className?: string }) {
+function SearchIcon({ className }: { readonly className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

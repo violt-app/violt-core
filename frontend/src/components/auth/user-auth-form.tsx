@@ -6,7 +6,9 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useError } from "@/lib/error";
 
 interface UserAuthFormProps extends Readonly<React.HTMLAttributes<HTMLDivElement>> {
   readonly type: "login" | "register";
@@ -17,7 +19,8 @@ export function UserAuthForm({
   type,
   ...props
 }: UserAuthFormProps) {
-  const { login } = useAuth();
+  const { login, register } = useAuth();
+  const { errorMessage, setError, displayError } = useError();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -35,14 +38,12 @@ export function UserAuthForm({
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    //setIsLoading(true);
+    setIsLoading(true);
 
     try {
-      // Validate form
-      if (type === "register") {
-        if (formData.password !== formData.confirmPassword) {
-          throw new Error("Passwords do not match");
-        }
+      if (type === "register" && formData.password !== formData.confirmPassword) {
+        setError("Passwords do not match.");
+        return;
       }
 
       if (type === "login") {
@@ -57,65 +58,22 @@ export function UserAuthForm({
           username: formData.username,
           email: formData.email,
           password: formData.password,
-          termsAccepted: formData.termsAccepted,
+          terms_accepted: formData.termsAccepted,
         });
       }
-
-      // Submit to API
-      // const endpoint = type === "login" ? "/api/auth/login" : "/api/auth/register";
-      // let requestBody: BodyInit;
-      // let headers: HeadersInit = {};
-
-      // if (type === "login") {
-      //   headers = {
-      //     "Content-Type": "application/x-www-form-urlencoded",
-      //   };
-      //   requestBody = new URLSearchParams({
-      //     username: formData.username,
-      //     password: formData.password,
-      //   });
-      // } else { // Register
-      //   headers = {
-      //     "Content-Type": "application/json",
-      //   };
-      //   // Ensure all required fields are present
-      //   if (!formData.name || !formData.username || !formData.email || !formData.password || typeof formData.termsAccepted === 'undefined') {
-      //     throw new Error("Missing required registration fields");
-      //   }
-      //   requestBody = JSON.stringify({
-      //     name: formData.name,
-      //     username: formData.username,
-      //     email: formData.email,
-      //     password: formData.password,
-      //     terms_accepted: formData.termsAccepted,
-      //   });
-      // }
-
-      // console.log(requestBody)
-
-      // const response = await fetch("http://localhost:8000" + endpoint, {
-      //   method: "POST",
-      //   headers: headers,
-      //   body: requestBody,
-      // });
-
-      setIsLoading(false);
-
-      // if (!response.ok) {
-      //   const error = await response.json();
-      //   throw new Error(error.message || "Authentication failed");
-      // }
-
-      // // Handle successful authentication
-      // console.log(type === 'login' ? 'Login successful:' : 'Registration successful:', await response.json());
-      // // Example: Redirect to dashboard after login
-      // if (type === 'login') router.push('/dashboard');
     } catch (error: any) {
+      setError(error.message ?? "An error occurred. Please try again.");
+    } finally {
       setIsLoading(false);
-      console.error("Authentication error:", error);
-      // TODO: Show error message to the user
     }
   }
+
+  // Prevent multiple calls to displayError by using useEffect
+  useEffect(() => {
+    if (errorMessage) {
+      displayError();
+    }
+  }, [errorMessage, displayError]);
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
@@ -204,18 +162,32 @@ export function UserAuthForm({
             </div>
           )}
           {type === "register" && (
-            <div className="grid gap-2">
-              <Label htmlFor="termsAccepted">Terms Accepted</Label>
+            <div className="inline-flex items-center space-x-2">
               <Input
                 id="termsAccepted"
                 name="termsAccepted"
                 type="checkbox"
+                className="w-8 h-8"
                 disabled={isLoading}
                 checked={formData.termsAccepted}
-                onChange={(e) => setFormData((prev) => ({ ...prev, termsAccepted: e.target.checked }))}
-                required
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    termsAccepted: (e.target as HTMLInputElement).checked,
+                  }))
+                }
               />
+              <Label htmlFor="termsAccepted" className="text-sm block">
+                I agree to the{" "}
+                <Link href="/terms" className="underline hover:text-primary">
+                  terms and conditions
+                </Link>{" "}
+                and consent to submit data for analytics and Machine Learning purposes.
+              </Label>
             </div>
+          )}
+          {errorMessage && (
+            <div className="text-red-500 text-sm">{errorMessage}</div>
           )}
           <div className="grid gap-2 mt-2">
             <Button disabled={isLoading}>

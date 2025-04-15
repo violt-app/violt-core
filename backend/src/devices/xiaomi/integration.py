@@ -804,8 +804,8 @@ class XiaomiIntegration(DeviceIntegration):
 
 
 # --- Register with Registry ---
-# Ensure the registry mechanism correctly imports and registers this class.
-# This is typically done by importing this module where the registry is initialized
+from ..registry import registry
+registry.register_integration_class(XiaomiIntegration)
 # or by having the registry scan a specific directory.
 
 # Example registration (if registry is imported here):
