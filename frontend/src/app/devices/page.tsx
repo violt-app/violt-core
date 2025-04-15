@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
-import { useDevices, Device } from "@/lib/devices";
+import { useDevices } from "@/lib/devices";
+import { Device } from "@/types/device-type";
 
 export default function DevicesPage() {
     const { devices: fetchedDevices, fetchDevices, addDevice } = useDevices(); // Add fetchDevices to fetch devices explicitly
@@ -16,7 +17,7 @@ export default function DevicesPage() {
 
     useEffect(() => {
         fetchDevices(); // Fetch devices when the page loads
-    }, []);
+    }, [fetchDevices]);
 
     useEffect(() => {
         setDevices(fetchedDevices.map(device => ({
@@ -40,11 +41,6 @@ export default function DevicesPage() {
             setIsAddingDevice(false);
         });
     };
-
-    // const handleAddDevice = async (newDevice: Device) => {
-    //     setDevices([...devices, newDevice]);
-    //     setIsAddingDevice(false);
-    // };
 
     const handleEditDevice = (updatedDevice: Device) => {
         setDevices(devices.map((device) =>
@@ -89,7 +85,7 @@ export default function DevicesPage() {
                                     deviceState={device.state || { state: {} }} // Provide a default DeviceState object
                                     deviceResponse={{
                                         id: device.id,
-                                        status: (device as any).status || "unknown", // Cast to 'any' to bypass type error or update the Device type definition
+                                        status: (device as any).status ?? "unknown", // Cast to 'any' to bypass type error or update the Device type definition
                                         state: device.state || { state: {} },
                                         created_at: new Date(), // Use Date object directly
                                         last_updated: new Date(), // Use Date object directly

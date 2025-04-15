@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDevices } from "@/lib/devices";
+import { useError } from "@/lib/error";
 
 interface DeviceFormProps {
   readonly device?: {
@@ -41,14 +42,20 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
     ip_address: device?.ip_address ?? "",
     mac_address: device?.mac_address ?? "",
     integration_type: device?.integration_type ?? "xiaomi",
-    config: device?.config ?? {}, // Added config field
+    config: device?.config ?? {},
   });
-
+  const { errorMessage, displayError, clearError } = useError();
   const [activeTab, setActiveTab] = useState("manual");
   const [isScanning, setIsScanning] = useState(false);
   const [discoveredDevices, setDiscoveredDevices] = useState<string[]>([]);
-
   const { discoverDevices } = useDevices();
+
+  // Prevent multiple calls to displayError by using useEffect
+  useEffect(() => {
+    if (errorMessage) {
+      displayError();
+    }
+  }, [errorMessage, displayError]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -71,6 +78,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
   };
 
   const handleSubmit = (e: React.FormEvent) => {
+    clearError();
     e.preventDefault();
     onSubmit({
       ...formData,
@@ -197,7 +205,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                     id="config-token"
                     name="token"
                     placeholder="Enter device token"
-                    value={formData.config.token || ""}
+                    value={formData.config.token ?? ""}
                     onChange={handleConfigChange}
                   />
                 </div>
@@ -247,6 +255,9 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
               </div>
             </TabsContent>
           </Tabs>
+          {errorMessage && (
+            <div className="text-red-500 text-sm">{errorMessage}</div>
+          )}
         </CardContent>
         <CardFooter className="flex justify-between">
           <Button variant="outline" type="button" onClick={onCancel}>

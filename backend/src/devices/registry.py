@@ -17,6 +17,7 @@ from ..core.config import settings, DEFAULT_CONFIG_DIR
 
 logger = logging.getLogger(__name__)
 
+logger.info("Registry module imported and top-level code executed.")
 
 class IntegrationRegistry:
     """Registry for device integrations."""
@@ -29,9 +30,13 @@ class IntegrationRegistry:
         self, integration_class: Type[DeviceIntegration]
     ) -> None:
         """Register an integration class."""
-        integration_type = integration_class.integration_type
+        integration_type = getattr(integration_class, 'integration_type', None)
+        logger.info(f"Attempting to register integration class: {integration_class} (type={integration_type})")
+        if not integration_type:
+            logger.error(f"Integration class {integration_class} missing 'integration_type' attribute!")
+            return
         self.integration_classes[integration_type] = integration_class
-        logger.info(f"Registered integration class: {integration_type}")
+        logger.info(f"Registered integration class: {integration_type}. Current keys: {list(self.integration_classes.keys())}")
 
     async def setup_integration(
         self, integration_type: str, config: Dict[str, Any]
@@ -177,28 +182,35 @@ class IntegrationRegistry:
             logger.error(f"Error loading integration from {file_path}: {e}")
 
 
-# Create global registry instance
-registry = IntegrationRegistry()
-
-
 def load_integration_modules():
+    # logger.info("Calling load_integration_modules() 3")
     """Load all integration modules."""
     # Get the directory of this file using pathlib for cross-platform compatibility
     current_dir = Path(__file__).parent.absolute()
 
     # Log the directory we're searching for modules
-    logger.info(f"Searching for integration modules in: {current_dir}")
+    logger.info(f"Subdirectories found: {os.listdir(current_dir)}")
 
     # Get all subdirectories (potential integration modules)
     for item in os.listdir(current_dir):
         item_path = current_dir / item
+        logger.info(f"Inspecting item: {item} (is_dir={item_path.is_dir()})")
         if item_path.is_dir() and not item.startswith("__"):
             try:
                 # Try to import the module
                 module_name = f".{item}"
+                logger.info(f"Attempting to import integration module: {module_name}")
                 importlib.import_module(module_name, package="src.devices")
                 logger.info(f"Loaded integration module: {item}")
             except ImportError as e:
+                logger.error(f"Failed to import integration module '{item}': {e}")
                 logger.error(f"Error importing integration module {item}: {e}")
             except Exception as e:
                 logger.error(f"Unexpected error loading module {item}: {e}")
+
+# Create global registry instance
+registry = IntegrationRegistry()
+
+logger.info("Calling load_integration_modules() 2")
+
+load_integration_modules()

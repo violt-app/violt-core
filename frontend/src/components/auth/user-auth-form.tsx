@@ -46,13 +46,20 @@ export function UserAuthForm({
         return;
       }
 
+      if (type === "login" && (!formData.username || !formData.password)) {
+        setError("Please enter both your username and password.");
+        return;
+      }
+
       if (type === "login") {
         login(formData.username, formData.password);
       } else if (type === "register") {
         // Ensure all required fields are present
         if (!formData.name || !formData.username || !formData.email || !formData.password || typeof formData.termsAccepted === 'undefined') {
+          setError("Please fill in all required fields.");
           throw new Error("Missing required registration fields");
         }
+
         register({
           name: formData.name,
           username: formData.username,
