@@ -88,7 +88,8 @@ async def startup_event_handler(app: FastAPI):
 
         # Load device integration modules
         logger.info("Loading device integration modules...")
-        load_integration_modules()
+        # logger.info("Calling load_integration_modules() 1")
+        #load_integration_modules()
 
         # Start the automation engine
         logger.info("Starting automation engine...")
