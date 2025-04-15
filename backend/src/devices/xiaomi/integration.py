@@ -705,7 +705,7 @@ class XiaomiIntegration(DeviceIntegration):
         config = device_config.get("config", {})
         token = config.get("token") or device_config.get("token")
         if not token or token == "placeholder":
-            logger.error(
+            raise DeviceIntegrationError(
                 f"Missing or placeholder token for device {device_config.get('id')} ({device_config.get('name')}) at {device_config.get('ip_address')}. Please provide the actual token."
             )
         device_id = device_config.get(
