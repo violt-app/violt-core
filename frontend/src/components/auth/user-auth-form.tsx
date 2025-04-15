@@ -46,16 +46,20 @@ export function UserAuthForm({
         return;
       }
 
-      if (type === "register") {
-        await register({
+      if (type === "login") {
+        login(formData.username, formData.password);
+      } else if (type === "register") {
+        // Ensure all required fields are present
+        if (!formData.name || !formData.username || !formData.email || !formData.password || typeof formData.termsAccepted === 'undefined') {
+          throw new Error("Missing required registration fields");
+        }
+        register({
           name: formData.name,
           username: formData.username,
           email: formData.email,
           password: formData.password,
           terms_accepted: formData.termsAccepted,
         });
-      } else if (type === "login") {
-        await login(formData.username, formData.password);
       }
     } catch (error: any) {
       setError(error.message ?? "An error occurred. Please try again.");
