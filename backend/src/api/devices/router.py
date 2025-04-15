@@ -114,10 +114,11 @@ async def create_device(
     if not integration:
         # Attempt to load the integration if not already loaded - needed if config is dynamic
         await device_registry.load_integrations_from_config(
-            "config/integrations"
+            "integrations"
         )  # Assuming config path
         integration = device_registry.get_integration(device_data.integration_type)
         if not integration:
+            logger.error(f"Device creation failed: Unsupported integration type '{device_data.integration_type}'. Request data: {device_data.model_dump()}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Integration type '{device_data.integration_type}' not supported or configured.",
@@ -129,6 +130,7 @@ async def create_device(
         and device_data.config
         and device_data.config.get("token")
     ):
+        logger.error(f"Device creation failed: Missing ip_address or token for Xiaomi. Request data: {device_data.model_dump()}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Xiaomi devices require ip_address and token in config.",
@@ -167,6 +169,7 @@ async def create_device(
         if not integration_device:
             # Rollback database change if integration add fails
             await db.rollback()
+            logger.error(f"Device creation failed: Integration add_device returned None. Integration: {integration}, Request data: {device_data.model_dump()}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to add device to integration.",
@@ -178,13 +181,14 @@ async def create_device(
 
     except DeviceIntegrationError as e:
         await db.rollback()
+        logger.error(f"Device creation failed: DeviceIntegrationError: {e}. Request data: {device_data.model_dump()}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=f"Integration error: {e}"
         )
     except Exception as e:
         await db.rollback()
         logger.error(
-            f"Unexpected error adding device to integration: {e}", exc_info=True
+            f"Unexpected error adding device to integration: {e}. Request data: {device_data.model_dump()}", exc_info=True
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -197,7 +201,7 @@ async def create_device(
         await db.refresh(new_device_db)
     except Exception as e:
         await db.rollback()  # Rollback if commit fails
-        logger.error(f"Database error creating device: {e}", exc_info=True)
+        logger.error(f"Database error creating device: {e}. Device data: {device_data.model_dump()}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to save device to database.",

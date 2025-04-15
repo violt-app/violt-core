@@ -98,7 +98,7 @@ async def startup_event_handler(app: FastAPI):
         except Exception as e:
             logger.error(f"Failed to start automation engine: {e}", exc_info=True)
             # Decide if this is critical enough to stop startup
-            # raise StartupError(f"Automation engine failed to start: {e}")
+            raise StartupError(f"Automation engine failed to start: {e}")
 
         logger.info(f"{settings.APP_NAME} startup complete, application ready.")
 
@@ -128,10 +128,10 @@ async def shutdown_event_handler(app: FastAPI):
         await automation_engine.stop()
 
     # Close integration sessions (e.g., aiohttp)
-    # from ..devices.registry import registry as device_registry
-    # for integration in device_registry.get_integrations():
-    #     if hasattr(integration, 'close_session') and asyncio.iscoroutinefunction(integration.close_session):
-    #         await integration.close_session()
+    from ..devices.registry import registry as device_registry
+    for integration in device_registry.get_integrations():
+        if hasattr(integration, 'close_session') and asyncio.iscoroutinefunction(integration.close_session):
+            await integration.close_session()
 
     # Dispose of the main database engine pool (optional for aiosqlite)
     if async_engine:

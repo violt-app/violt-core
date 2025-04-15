@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DeviceCard } from "@/components/devices/device-card";
 import { DeviceForm } from "@/components/devices/device-form";
 import { Button } from "@/components/ui/button";
@@ -10,20 +11,40 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { useDevices, Device } from "@/lib/devices";
 
 export default function DevicesPage() {
-    const { devices: fetchedDevices } = useDevices();
-    const [devices, setDevices] = useState<Device[]>(() => fetchedDevices.map(device => ({
-        ...device,
-        status: "offline", // Default status
-        state: device.state || {},
-        capabilities: [] // Default capabilities
-    })));
+    const { devices: fetchedDevices, fetchDevices, addDevice } = useDevices(); // Add fetchDevices to fetch devices explicitly
+    const [devices, setDevices] = useState<Device[]>([]);
+
+    useEffect(() => {
+        fetchDevices(); // Fetch devices when the page loads
+    }, []);
+
+    useEffect(() => {
+        setDevices(fetchedDevices.map(device => ({
+            name: '',
+            type: '',
+            manufacturer: '',
+            integration_type: '',
+            ...device,
+            status: "offline",
+            state: device.state || { state: {} },
+            capabilities: []
+        })));
+    }, [fetchedDevices]);
+
     const [isAddingDevice, setIsAddingDevice] = useState(false);
     const [editingDevice, setEditingDevice] = useState<Device | null>(null);
 
     const handleAddDevice = (newDevice: Device) => {
-        setDevices([...devices, newDevice]);
-        setIsAddingDevice(false);
+        addDevice(newDevice).then((addedDevice) => {
+            setDevices((prev) => [...prev, addedDevice]);
+            setIsAddingDevice(false);
+        });
     };
+
+    // const handleAddDevice = async (newDevice: Device) => {
+    //     setDevices([...devices, newDevice]);
+    //     setIsAddingDevice(false);
+    // };
 
     const handleEditDevice = (updatedDevice: Device) => {
         setDevices(devices.map((device) =>
@@ -35,6 +56,7 @@ export default function DevicesPage() {
     const handleDeleteDevice = (id: string) => {
         setDevices((prev) => prev.filter((device) => device.id !== id));
     };
+
     return (
         <MainLayout
             sidebar={<Sidebar />}
@@ -62,9 +84,16 @@ export default function DevicesPage() {
                         <div className="grid gap-4 mt-4">
                             {devices.map((device) => (
                                 <DeviceCard
-                                    key={device.id} // Ensure unique key
+                                    key={device.id}
                                     device={device}
-                                    deviceState={device.state || {}} // Provide a default empty object for deviceState
+                                    deviceState={device.state || { state: {} }} // Provide a default DeviceState object
+                                    deviceResponse={{
+                                        id: device.id,
+                                        status: (device as any).status || "unknown", // Cast to 'any' to bypass type error or update the Device type definition
+                                        state: device.state || { state: {} },
+                                        created_at: new Date(), // Use Date object directly
+                                        last_updated: new Date(), // Use Date object directly
+                                    }} // Provide a default or actual DeviceResponse object
                                     onEdit={(id) =>
                                         setEditingDevice(devices.find((d) => d.id === id) || null)
                                     }

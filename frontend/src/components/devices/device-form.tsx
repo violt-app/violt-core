@@ -21,11 +21,16 @@ interface DeviceFormProps {
     readonly ip_address?: string;
     readonly mac_address?: string;
     readonly integration_type: string;
+    readonly config?: {
+      readonly token?: string;
+    };
   };
   readonly onSubmit: (device: any) => void;
   readonly onCancel: () => void;
   readonly isLoading?: boolean;
 }
+
+// Added a field for the config dictionary to align with the backend schema.
 
 export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: DeviceFormProps) {
   const [formData, setFormData] = useState({
@@ -36,6 +41,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
     ip_address: device?.ip_address ?? "",
     mac_address: device?.mac_address ?? "",
     integration_type: device?.integration_type ?? "xiaomi",
+    config: device?.config ?? {}, // Added config field
   });
 
   const [activeTab, setActiveTab] = useState("manual");
@@ -51,6 +57,17 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      config: {
+        ...prev.config,
+        [name]: value,
+      },
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -171,6 +188,17 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                     placeholder="00:11:22:33:44:55"
                     value={formData.mac_address}
                     onChange={handleChange}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="config-token">Device Token</Label>
+                  <Input
+                    id="config-token"
+                    name="token"
+                    placeholder="Enter device token"
+                    value={formData.config.token || ""}
+                    onChange={handleConfigChange}
                   />
                 </div>
               </div>
