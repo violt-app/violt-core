@@ -3,5 +3,11 @@ devices:
   - name: Living Room Light
     type: light
     model: MJDP09YL
-    ip_address: 192.168.1.100
+    ip_address: 192.168.0.101
     token: 5CYFcXkjPfX5W4nBQ1h3hsF6DjprjZ3n
+  # Add more devices as needed:
+  # - name: Bedroom Air Purifier
+  #   type: air_purifier
+  #   model: zhimi.airpurifier.ma2
+  #   ip_address: 192.168.0.102
+  #   token: <YOUR_DEVICE_TOKEN>

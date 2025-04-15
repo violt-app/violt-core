@@ -6,7 +6,7 @@ Violt Core Lite - Xiaomi Device Integration
 This module implements the integration with Xiaomi devices using the miio library.
 """
 
-from typing import Dict, List, Any, Optional, Type, Coroutine
+from typing import Dict, List, Any, Optional, Type, Coroutine, Callable
 import logging
 import asyncio
 from datetime import datetime
@@ -584,15 +584,19 @@ class XiaomiIntegration(DeviceIntegration):
 
     def __init__(self, config: Dict[str, Any] = None):
         super().__init__(config)
+        self.lock = asyncio.Lock()
+        logger.info(f"XiaomiIntegration __init__ called with config: {config}")
         self.discovery_task: Optional[asyncio.Task] = None
         self._discover_callback: Optional[Callable[[Dict[str, Any]], Coroutine]] = None
 
     async def setup(self, config: Dict[str, Any]) -> bool:
         """Set up the integration (currently no specific setup needed)."""
         self.config = config or {}
-        logger.info("Xiaomi integration setup complete.")
+        logger.info(f"XiaomiIntegration.setup called. Config: {config}, Self: {self}")
+        logger.info(f"Integration class dict after setup: {self.__dict__}")
         # Load devices specified in config?
         # await self.load_devices_from_config(self.config.get("devices", []))
+        logger.info("Xiaomi integration setup complete.")
         return True
 
     async def discover_devices(
@@ -698,11 +702,17 @@ class XiaomiIntegration(DeviceIntegration):
 
     async def add_device(self, device_config: Dict[str, Any]) -> Optional[Device]:
         """Add a device instance and connect to it."""
+        config = device_config.get("config", {})
+        token = config.get("token") or device_config.get("token")
+        if not token or token == "placeholder":
+            logger.error(
+                f"Missing or placeholder token for device {device_config.get('id')} ({device_config.get('name')}) at {device_config.get('ip_address')}. Please provide the actual token."
+            )
         device_id = device_config.get(
             "id", str(uuid.uuid4())
         )  # Use provided ID or generate
         ip_address = device_config.get("ip_address")
-        token = device_config.get("token")
+        # token = device_config.get("token")
 
         if not ip_address:
             raise DeviceIntegrationError(
@@ -810,5 +820,4 @@ registry.register_integration_class(XiaomiIntegration)
 
 # Example registration (if registry is imported here):
 from ..registry import registry
-
 registry.register_integration_class(XiaomiIntegration)
