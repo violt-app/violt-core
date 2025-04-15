@@ -118,12 +118,12 @@ async def get_system_status(
     uptime_delta = datetime.utcnow() - STARTUP_TIME
     uptime_str = format_uptime(uptime_delta)
 
-    device_count = 0 # Placeholder
-    automation_count = 0 # Placeholder
+    device_count = 0
+    automation_count = 0
     last_event_time = await get_last_event_time(db)
 
     # Get connected WebSocket clients (example, needs actual implementation in websocket manager)
-    connected_clients = 0  # Placeholder
+    connected_clients = 0
     # if hasattr(websocket_manager, 'get_total_connections'):
     #    connected_clients = websocket_manager.get_total_connections()
 

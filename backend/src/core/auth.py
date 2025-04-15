@@ -11,6 +11,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+import logging
 
 from ..core.config import settings
 from ..core.schemas import TokenData, UserInDB
@@ -23,6 +24,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # OAuth2 scheme for token authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
+logger = logging.getLogger(__name__)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against a hash."""
@@ -48,11 +50,20 @@ async def get_user_by_id(db: AsyncSession, user_id: str) -> Optional[User]:
 
 async def authenticate_user(db: AsyncSession, username: str, password: str) -> Optional[User]:
     """Authenticate a user with username and password."""
+    logger.debug(f"Attempting to authenticate user: {username}")
     user = await get_user_by_username(db, username)
     if not user:
+        logger.warning(f"Authentication failed: User '{username}' not found.")
         return None
-    if not verify_password(password, user.password_hash):
+    
+    logger.debug(f"User '{username}' found. Verifying password...")
+    is_password_valid = verify_password(password, user.password_hash)
+
+    if not is_password_valid:
+        logger.warning(f"Authentication failed: Incorrect password for user '{username}'.")
         return None
+    
+    logger.info(f"User '{username}' authenticated successfully.")
     return user
 
 

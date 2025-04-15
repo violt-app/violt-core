@@ -41,8 +41,7 @@ def get_database_url():
             # Create new URL with absolute path
             db_url = f"sqlite:///{db_path}"
 
-    # Convert to aiosqlite for async operations
-    return db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+    return db_url
 
 
 # Create async engine

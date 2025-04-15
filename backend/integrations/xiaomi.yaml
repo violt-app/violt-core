@@ -1,0 +1,7 @@
+type: xiaomi
+devices:
+  - name: Living Room Light
+    type: light
+    model: MJDP09YL
+    ip_address: 192.168.1.100
+    token: 5CYFcXkjPfX5W4nBQ1h3hsF6DjprjZ3n

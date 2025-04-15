@@ -13,10 +13,11 @@ services:
       - violt-config:/app/config
       - violt-data:/app/data
       - violt-logs:/app/logs
+      - ./backend/integrations:/app/config/integrations
     environment:
       - HOST=0.0.0.0
       - PORT=8000
-      - DATABASE_URL=sqlite:///./data/violt.db
+      - DATABASE_URL=sqlite+aiosqlite:///./data/violt.db
       - SECRET_KEY=${SECRET_KEY:-default_dev_key_change_in_production}
       - ACCESS_TOKEN_EXPIRE_MINUTES=60
       - DEBUG=${DEBUG:-false}
