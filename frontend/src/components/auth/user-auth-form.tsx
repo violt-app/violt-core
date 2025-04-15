@@ -48,6 +48,7 @@ export function UserAuthForm({
 
       if (type === "login" && (!formData.username || !formData.password)) {
         setError("Please enter both your username and password.");
+        return;
       }
 
       if (type === "login") {
