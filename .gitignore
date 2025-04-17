@@ -88,3 +88,5 @@ $RECYCLE.BIN/
 # Application specific
 data/
 uploads/
+package-lock.json
+frontend/package-lock.json

@@ -5,7 +5,7 @@ This module defines Pydantic models for request/response validation.
 """
 from pydantic import BaseModel, Field, EmailStr, validator, ConfigDict
 from typing import Optional, List, Dict, Any, Union
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 import uuid
 
@@ -31,7 +31,7 @@ class UserBase(BaseSchema):
 class UserCreate(UserBase):
     """Schema for user creation."""
     password: str = Field(..., min_length=8)
-    terms_accepted: bool = Field(...)
+    terms_accepted: bool = Field(default=False)
     
     @validator('password')
     def password_strength(cls, v):
@@ -120,6 +120,37 @@ class LoginRequest(BaseSchema):
     )
 
 
+from enum import Enum
+
+class DeviceStatus(str, Enum):
+    """Enumeration of possible device statuses."""
+    CONNECTED = "connected"
+    OFFLINE = "offline"
+    ERROR = "error"
+    CONNECTING = "connecting"
+
+class DeviceStateField(str, Enum):
+    """Enumeration of possible device state fields."""
+    POWER = "power"
+    BRIGHTNESS = "brightness"
+    COLOR_TEMP = "color_temp"
+    COLOR = "color"
+    TEMPERATURE = "temperature"
+    HUMIDITY = "humidity"
+    MOTION = "motion"
+    BATTERY = "battery"
+
+class DeviceCapability(str, Enum):
+    """Enumeration of possible device capabilities."""
+    POWER = "power"
+    BRIGHTNESS = "brightness"
+    COLOR = "color"
+    COLOR_TEMP = "color_temp"
+    TEMPERATURE = "temperature"
+    HUMIDITY = "humidity"
+    MOTION = "motion"
+    BATTERY = "battery"
+
 # Device schemas
 class DeviceBase(BaseSchema):
     """Base schema for device data."""
@@ -165,41 +196,94 @@ class DeviceUpdate(BaseSchema):
 
 class DeviceState(BaseSchema):
     """Schema for device state."""
-    state: Dict[str, Any]
-    
+    power: Optional[str] = Field(None, description="Power state: 'on', 'off', or None")
+    brightness: Optional[int] = Field(None, ge=0, le=100, description="Brightness percentage")
+    color_temp: Optional[int] = Field(None, description="Color temperature in Kelvin")
+    color: Optional[str] = Field(None, description="Color in hex format")
+    temperature: Optional[float] = Field(None, description="Temperature in Celsius")
+    humidity: Optional[float] = Field(None, ge=0, le=100, description="Humidity percentage")
+    motion: Optional[bool] = Field(None, description="Motion detection state")
+    battery: Optional[int] = Field(None, ge=0, le=100, description="Battery percentage")
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "state": {
-                    "power": "on",
-                    "brightness": 80,
-                    "color_temp": 4000
-                }
+                "power": "on",
+                "brightness": 80,
+                "color_temp": 4000
             }
         }
     )
 
 
+class DeviceProperties(BaseSchema):
+    """Schema for device capabilities and properties."""
+    capabilities: List[DeviceCapability] = Field(default_factory=list)
+    supported_features: Dict[str, Any] = Field(default_factory=dict)
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "capabilities": ["power", "brightness", "color_temp"],
+                "supported_features": {
+                    "brightness_range": [0, 100],
+                    "color_temp_range": [2700, 6500]
+                }
+            }
+        }
+    )
+
 class DeviceInDB(DeviceBase):
     """Schema for device in database."""
     id: str
     user_id: str
-    status: str
-    properties: Optional[Dict[str, Any]] = None
-    state: Optional[Dict[str, Any]] = None
-    created_at: datetime
-    last_updated: datetime
+    status: DeviceStatus = Field(default=DeviceStatus.OFFLINE)
+    properties: DeviceProperties = Field(default_factory=DeviceProperties)
+    state: DeviceState = Field(default_factory=DeviceState)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     config: Optional[Dict[str, Any]] = None
 
 
 class DeviceResponse(DeviceBase):
     """Schema for device response."""
     id: str
-    status: str
-    properties: Optional[Dict[str, Any]] = None
-    state: Optional[Dict[str, Any]] = None
+    status: DeviceStatus
+    properties: DeviceProperties
+    state: DeviceState
     created_at: datetime
     last_updated: datetime
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "abc123",
+                "name": "Living Room Light",
+                "type": "light",
+                "manufacturer": "Xiaomi",
+                "model": "MJDP09YL",
+                "location": "Living Room",
+                "ip_address": "192.168.1.100",
+                "mac_address": "AA:BB:CC:DD:EE:FF",
+                "integration_type": "xiaomi",
+                "status": "connected",
+                "properties": {
+                    "capabilities": ["power", "brightness", "color_temp"],
+                    "supported_features": {
+                        "brightness_range": [0, 100],
+                        "color_temp_range": [2700, 6500]
+                    }
+                },
+                "state": {
+                    "power": "on",
+                    "brightness": 80,
+                    "color_temp": 4000
+                },
+                "created_at": "2025-04-17T11:33:03Z",
+                "last_updated": "2025-04-17T11:33:03Z"
+            }
+        }
+    )
 
 
 # Automation schemas

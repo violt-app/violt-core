@@ -12,14 +12,17 @@ from sqlalchemy import delete as sql_delete
 from typing import List, Optional, Dict, Any
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 import asyncio
 
 from ...core.schemas import (
     DeviceCreate,
     DeviceUpdate,
     DeviceResponse,
-    DeviceState as DeviceStateSchema,
+    DeviceState,
+    DeviceStatus,
+    DeviceProperties,
+    DeviceCapability,
 )
 from ...core.auth import get_current_active_user
 from ...database.session import get_db
@@ -137,9 +140,9 @@ async def create_device(
         )
     # Add similar checks for other integrations as needed
 
-    # Create new device model instance
+    # Create new device model instance with proper schema initialization
     new_device_db = Device(
-        id=str(uuid.uuid4()),  # Ensure ID is generated
+        id=str(uuid.uuid4()),
         user_id=current_user.id,
         name=device_data.name,
         type=device_data.type,
@@ -150,55 +153,62 @@ async def create_device(
         mac_address=device_data.mac_address,
         integration_type=device_data.integration_type,
         config=device_data.config,
-        properties={},  # Initialize properties
-        state={},  # Initialize state
-        status="offline",  # Initial status
+        properties=DeviceProperties(),
+        state=DeviceState(),
+        status=DeviceStatus.OFFLINE,
     )
 
     db.add(new_device_db)
 
-    # Attempt to add/connect via the integration module
-    try:
-        # The integration's add_device should handle connection and initial state
-        integration_device: Optional[IntegrationDevice] = await integration.add_device(
-            {
-                **device_data.model_dump(),
-                "id": new_device_db.id,  # Pass the generated ID
-            }
-        )
-        if not integration_device:
-            # Rollback database change if integration add fails
-            await db.rollback()
-            logger.error(f"Device creation failed: Integration add_device returned None. Integration: {integration}, Request data: {device_data.model_dump()}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to add device to integration.",
-            )
-        # Update DB record with initial state/status from integration
-        new_device_db.status = integration_device.status
-        new_device_db.state = integration_device.state.to_dict()
-        new_device_db.properties = integration_device.properties
-
-    except DeviceIntegrationError as e:
-        await db.rollback()
-        logger.error(f"Device creation failed: DeviceIntegrationError: {e}. Request data: {device_data.model_dump()}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Integration error: {e}"
-        )
-    except Exception as e:
-        await db.rollback()
-        logger.error(
-            f"Unexpected error adding device to integration: {e}. Request data: {device_data.model_dump()}", exc_info=True
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while adding the device.",
-        )
-
-    # Commit device to DB
+    # Save device to DB without attempting connection
     try:
         await db.commit()
         await db.refresh(new_device_db)
+        logger.info(f"Device {new_device_db.name} created successfully with ID: {new_device_db.id}")
+        
+        # Try to connect in background without affecting device creation
+        try:
+            integration_device: Optional[IntegrationDevice] = await integration.add_device(
+                {
+                    **device_data.model_dump(),
+                    "id": new_device_db.id,
+                }
+            )
+            if integration_device:
+                # Update device status
+                new_device_db.status = DeviceStatus.CONNECTED
+                
+                # Update device state with actual values
+                new_device_db.state = DeviceState(
+                    power=integration_device.state.get('power'),
+                    brightness=integration_device.state.get('brightness'),
+                    color_temp=integration_device.state.get('color_temp'),
+                    color=integration_device.state.get('color'),
+                    temperature=integration_device.state.get('temperature'),
+                    humidity=integration_device.state.get('humidity'),
+                    motion=integration_device.state.get('motion'),
+                    battery=integration_device.state.get('battery')
+                )
+                
+                # Update device properties with capabilities
+                new_device_db.properties = DeviceProperties(
+                    capabilities=[DeviceCapability(cap) for cap in integration_device.properties.get('capabilities', [])],
+                    supported_features=integration_device.properties.get('supported_features', {})
+                )
+                
+                await db.commit()
+                logger.info(f"Device {new_device_db.name} connected successfully")
+        except Exception as e:
+            logger.warning(f"Initial connection attempt failed for device {new_device_db.name}: {str(e)}")
+            # Don't raise exception - device is created but offline
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to create device in database: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create device"
+        )
     except Exception as e:
         await db.rollback()  # Rollback if commit fails
         logger.error(f"Database error creating device: {e}. Device data: {device_data.model_dump()}", exc_info=True)
@@ -225,9 +235,104 @@ async def create_device(
         current_user.id,
         "devices",
     )
-
     logger.info(f"Device created: {new_device_db.id} - {new_device_db.name}")
     return new_device_db
+
+
+@router.post("/{device_id}/connect", response_model=DeviceResponse)
+async def connect_device(
+    device_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Attempt to connect to a device."""
+    # Get the device
+    device = await get_device_by_id(db, device_id, current_user.id)
+    
+    # Get the integration
+    integration = device_registry.get_integration(device.integration_type)
+    if not integration:
+        logger.error(f"Connection failed: Integration {device.integration_type} not found for device {device.name}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Integration {device.integration_type} not found",
+        )
+    
+    try:
+        # Update status to connecting
+        device.status = DeviceStatus.CONNECTING
+        await db.commit()
+        
+        # Try to connect to the device
+        integration_device: Optional[IntegrationDevice] = await integration.add_device(
+            {
+                "id": device.id,
+                "name": device.name,
+                "type": device.type,
+                "model": device.model,
+                "ip_address": device.ip_address,
+                "mac_address": device.mac_address,
+                "config": device.config,
+            }
+        )
+        
+        if integration_device:
+            # Update device status
+            device.status = DeviceStatus.CONNECTED
+            
+            # Update device state with actual values
+            device.state = DeviceState(
+                power=integration_device.state.get('power'),
+                brightness=integration_device.state.get('brightness'),
+                color_temp=integration_device.state.get('color_temp'),
+                color=integration_device.state.get('color'),
+                temperature=integration_device.state.get('temperature'),
+                humidity=integration_device.state.get('humidity'),
+                motion=integration_device.state.get('motion'),
+                battery=integration_device.state.get('battery')
+            )
+            
+            # Update device properties with capabilities
+            device.properties = DeviceProperties(
+                capabilities=[DeviceCapability(cap) for cap in integration_device.properties.get('capabilities', [])],
+                supported_features=integration_device.properties.get('supported_features', {})
+            )
+            
+            await db.commit()
+            logger.info(f"Device {device.name} connected successfully")
+            
+            # Send WebSocket update
+            await websocket_manager.send_personal_message(
+                {
+                    "type": "device_updated",
+                    "device": DeviceResponse.model_validate(device).model_dump(),
+                },
+                current_user.id,
+                "devices",
+            )
+            
+            return device
+        else:
+            device.status = DeviceStatus.ERROR
+            await db.commit()
+            logger.error(f"Connection failed: Integration returned None for device {device.name}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to connect to device",
+            )
+            
+    except DeviceIntegrationError as e:
+        logger.error(f"Connection failed: Integration error for device {device.name}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to connect: {str(e)}",
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error connecting to device {device.name}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while connecting to the device",
+        )
 
 
 @router.get("/{device_id}", response_model=DeviceResponse)
@@ -382,7 +487,7 @@ async def delete_device(
     # No return needed for 204
 
 
-@router.get("/{device_id}/state", response_model=DeviceStateSchema)
+@router.get("/{device_id}/state", response_model=DeviceState)
 async def get_device_state(
     device_id: str,
     db: AsyncSession = Depends(get_db),
@@ -403,13 +508,13 @@ async def get_device_state(
     #            # Re-fetch from DB to get updated state (or update device object directly)
     #            device = await get_device_by_id(db, device_id, current_user.id)
 
-    return DeviceStateSchema(state=device.state or {})
+    return device.state
 
 
-@router.put("/{device_id}/state", response_model=DeviceStateSchema)
+@router.put("/{device_id}/state", response_model=DeviceState)
 async def update_device_state(
     device_id: str,
-    state_data: DeviceStateSchema,
+    state_data: DeviceState,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -424,8 +529,7 @@ async def update_device_state(
     device_db = await get_device_by_id(db, device_id, current_user.id)
 
     # Directly update state in DB - USE WITH CAUTION
-    new_state = state_data.state
-    device_db.state = new_state
+    device_db.state = state_data
     from datetime import timezone
     device_db.last_updated = datetime.now(timezone.utc)
 
@@ -450,20 +554,24 @@ async def update_device_state(
         data={
             "device_id": device_db.id,
             "device_name": device_db.name,
-            "state": new_state,
+            "state": state_data.model_dump(),
         },
         device_id=device_db.id,
     )
 
     # Send WebSocket update
     await websocket_manager.send_personal_message(
-        {"type": "device_state_changed", "device_id": device_id, "state": new_state},
+        {
+            "type": "device_state_changed",
+            "device_id": device_id,
+            "device": DeviceResponse.model_validate(device_db).model_dump(),
+        },
         current_user.id,
         "devices",
     )
 
     logger.info(f"Device state manually updated: {device_db.id} - {device_db.name}")
-    return DeviceStateSchema(state=device_db.state)
+    return device_db.state
 
 
 @router.post("/{device_id}/command", response_model=Dict[str, Any])
@@ -505,13 +613,35 @@ async def execute_device_command(
         )
 
     try:
+        # Update status to show we're executing a command
+        device_db.status = DeviceStatus.CONNECTING
+        await db.commit()
+        
         success = await integration_device.execute_command(command, params)
         if success:
+            # Get updated state from device
+            new_state = await integration_device.get_state()
+            
+            # Update device with new state and status
+            device_db.status = DeviceStatus.CONNECTED
+            device_db.state = DeviceState(
+                power=new_state.get('power'),
+                brightness=new_state.get('brightness'),
+                color_temp=new_state.get('color_temp'),
+                color=new_state.get('color'),
+                temperature=new_state.get('temperature'),
+                humidity=new_state.get('humidity'),
+                motion=new_state.get('motion'),
+                battery=new_state.get('battery')
+            )
+            device_db.last_updated = datetime.now(timezone.utc)
+            await db.commit()
+            
             logger.info(
                 f"Command '{command}' executed successfully on device {device_id}"
             )
 
-            # Log event (optional, command execution itself might trigger state change event)
+            # Log event
             await log_event(
                 db,
                 event_type="device_command_sent",
@@ -521,28 +651,63 @@ async def execute_device_command(
                     "command": command,
                     "params": params,
                     "success": True,
+                    "new_state": device_db.state.model_dump(),
                 },
                 device_id=device_id,
             )
 
-            # Optionally trigger a state refresh after a short delay
-            asyncio.create_task(asyncio.sleep(2), integration_device.refresh_state())
+            # Send WebSocket update
+            await websocket_manager.send_personal_message(
+                {
+                    "type": "device_updated",
+                    "device": DeviceResponse.model_validate(device_db).model_dump(),
+                },
+                current_user.id,
+                "devices",
+            )
 
-            return {"status": "success", "message": f"Command '{command}' sent."}
+            return {
+                "status": "success",
+                "message": f"Command '{command}' executed successfully.",
+                "device": DeviceResponse.model_validate(device_db).model_dump(),
+            }
         else:
+            # Update status to error
+            device_db.status = DeviceStatus.ERROR
+            await db.commit()
+            
             logger.warning(f"Command '{command}' failed for device {device_id}")
             await log_event(
                 db,
                 event_type="device_command_failed",
                 source="integration",
-                data={"device_id": device_id, "command": command, "params": params},
+                data={
+                    "device_id": device_id,
+                    "command": command,
+                    "params": params
+                },
                 device_id=device_id,
             )
+            
+            # Send WebSocket update
+            await websocket_manager.send_personal_message(
+                {
+                    "type": "device_updated",
+                    "device": DeviceResponse.model_validate(device_db).model_dump(),
+                },
+                current_user.id,
+                "devices",
+            )
+            
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to execute command '{command}'.",
             )
     except DeviceIntegrationError as e:
+        # Update status to error
+        device_db.status = DeviceStatus.ERROR
+        await db.commit()
+        
         logger.error(
             f"Integration error executing command '{command}' on device {device_id}: {e}",
             exc_info=True,
@@ -559,11 +724,26 @@ async def execute_device_command(
             },
             device_id=device_id,
         )
+        
+        # Send WebSocket update
+        await websocket_manager.send_personal_message(
+            {
+                "type": "device_updated",
+                "device": DeviceResponse.model_validate(device_db).model_dump(),
+            },
+            current_user.id,
+            "devices",
+        )
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Integration error: {e}",
         )
     except Exception as e:
+        # Update status to error
+        device_db.status = DeviceStatus.ERROR
+        await db.commit()
+        
         logger.error(
             f"Unexpected error executing command '{command}' on device {device_id}: {e}",
             exc_info=True,
@@ -580,6 +760,17 @@ async def execute_device_command(
             },
             device_id=device_id,
         )
+        
+        # Send WebSocket update
+        await websocket_manager.send_personal_message(
+            {
+                "type": "device_updated",
+                "device": DeviceResponse.model_validate(device_db).model_dump(),
+            },
+            current_user.id,
+            "devices",
+        )
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred.",
