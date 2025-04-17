@@ -10,9 +10,11 @@ import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useDevices } from "@/lib/devices";
 import { Device } from "@/types/device-type";
+import { useError } from "@/lib/error";
 
 export default function DevicesPage() {
-    const { devices: fetchedDevices, fetchDevices, addDevice } = useDevices(); // Add fetchDevices to fetch devices explicitly
+    const { devices: fetchedDevices, fetchDevices, addDevice, connectDevice } = useDevices();
+    const { setError } = useError();
     const [devices, setDevices] = useState<Device[]>([]);
 
     useEffect(() => {
@@ -21,14 +23,24 @@ export default function DevicesPage() {
 
     useEffect(() => {
         setDevices(fetchedDevices.map(device => ({
-            name: '',
-            type: '',
-            manufacturer: '',
-            integration_type: '',
-            ...device,
-            status: "offline",
-            state: device.state || { state: {} },
-            capabilities: []
+            name: device.name || '',
+            type: device.type || '',
+            manufacturer: device.manufacturer || '',
+            integration_type: device.integration_type || '',
+            id: device.id,
+            model: device.model,
+            location: device.location,
+            ip_address: device.ip_address,
+            mac_address: device.mac_address,
+            status: (device.status || "offline") as "connected" | "offline" | "error" | "connecting",
+            state: device.state || {},
+            properties: {
+                capabilities: device.properties?.capabilities || [],
+                supported_features: device.properties?.supported_features || []
+            },
+            created_at: device.created_at,
+            last_updated: device.last_updated,
+            config: device.config
         })));
     }, [fetchedDevices]);
 
@@ -52,6 +64,11 @@ export default function DevicesPage() {
     const handleDeleteDevice = (id: string) => {
         setDevices((prev) => prev.filter((device) => device.id !== id));
     };
+
+    const handleConnectDevice = async (id: string) => {
+        let result = await connectDevice(id);
+        setError(result.detail);
+    }
 
     return (
         <MainLayout
@@ -81,19 +98,20 @@ export default function DevicesPage() {
                             {devices.map((device) => (
                                 <DeviceCard
                                     key={device.id}
-                                    device={device}
-                                    deviceState={device.state || { state: {} }} // Provide a default DeviceState object
-                                    deviceResponse={{
-                                        id: device.id,
-                                        status: (device as any).status ?? "unknown", // Cast to 'any' to bypass type error or update the Device type definition
-                                        state: device.state || { state: {} },
-                                        created_at: new Date(), // Use Date object directly
-                                        last_updated: new Date(), // Use Date object directly
-                                    }} // Provide a default or actual DeviceResponse object
+                                    device={{
+                                        ...device,
+                                        status: device.status as "connected" | "offline" | "error" | "connecting",
+                                        state: device.state || {},
+                                        properties: {
+                                            capabilities: device.properties?.capabilities || [],
+                                            supported_features: device.properties?.supported_features || []
+                                        }
+                                    }}
                                     onEdit={(id) =>
                                         setEditingDevice(devices.find((d) => d.id === id) || null)
                                     }
                                     onDelete={handleDeleteDevice}
+                                    onConnect={handleConnectDevice}
                                 />
                             ))}
                         </div>

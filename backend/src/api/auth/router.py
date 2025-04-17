@@ -4,12 +4,12 @@ Violt Core Lite - API Router for Authentication
 This module handles authentication API endpoints.
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import text
 from datetime import datetime, timedelta
-
 from ...core.schemas import UserCreate, UserResponse, Token, LoginRequest
 from ...core.auth import (
     authenticate_user,
@@ -28,12 +28,19 @@ router = APIRouter()
 )
 async def register_user(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     """Register a new user."""
+    logger = logging.getLogger(__name__)
+    logger.info(f"Attempting to register new user with username: {user_data.username}")
+    
+    # Log the validation requirements
+    logger.debug(f"Validating registration data - Name: {len(user_data.name)} chars, Username: {len(user_data.username)} chars")
+    
     # Check if username already exists
     result = await db.execute(
         text("SELECT id FROM users WHERE username = :username"),
         {"username": user_data.username},
     )
     if result.scalar_one_or_none():
+        logger.warning(f"Registration failed: Username '{user_data.username}' is already registered")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered",
@@ -45,32 +52,40 @@ async def register_user(user_data: UserCreate, db: AsyncSession = Depends(get_db
         {"email": user_data.email},
     )
     if result.scalar_one_or_none():
+        logger.warning(f"Registration failed: Email '{user_data.email}' is already registered")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
 
-    # Check if terms are accepted
-    if not user_data.terms_accepted:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Terms and conditions must be accepted",
+    # Log if terms are accepted
+    if user_data.terms_accepted:
+        logger.info(f"User '{user_data.username}' has accepted terms and conditions")
+    else:
+        logger.info(f"User '{user_data.username}' has not accepted terms and conditions")
+
+    try:
+        # Create new user
+        hashed_password = get_password_hash(user_data.password)
+        new_user = User(
+            name=user_data.name,
+            username=user_data.username,
+            email=user_data.email,
+            password_hash=hashed_password,
+            terms_accepted=user_data.terms_accepted,
         )
 
-    # Create new user
-    hashed_password = get_password_hash(user_data.password)
-    new_user = User(
-        name=user_data.name,
-        username=user_data.username,
-        email=user_data.email,
-        password_hash=hashed_password,
-        terms_accepted=user_data.terms_accepted,
-    )
-
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
-
-    return new_user
+        db.add(new_user)
+        await db.commit()
+        await db.refresh(new_user)
+        
+        logger.info(f"Successfully registered new user: {user_data.username}")
+        return new_user
+    except Exception as e:
+        logger.error(f"Failed to create user '{user_data.username}': {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create user: {str(e)}"
+        )
 
 
 @router.post("/login", response_model=Token)

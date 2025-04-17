@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sidebar } from "./sidebar";
+import { useError } from "@/lib/error";
 
 interface HeaderProps {
   readonly className?: string;
@@ -24,8 +25,10 @@ export function Header({ className, title, subtitle, actions }: HeaderProps) {
   const { logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { clearError } = useError();
 
   const handleLogout = () => {
+    clearError();
     logout();
   };
 

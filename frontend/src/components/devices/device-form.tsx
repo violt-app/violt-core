@@ -22,8 +22,16 @@ interface DeviceFormProps {
     readonly ip_address?: string;
     readonly mac_address?: string;
     readonly integration_type: string;
+    readonly properties?: {
+      readonly capabilities: string[];
+      readonly supported_features: string[];
+    };
     readonly config?: {
       readonly token?: string;
+      readonly username?: string;
+      readonly password?: string;
+      readonly host?: string;
+      readonly port?: number;
     };
   };
   readonly onSubmit: (device: any) => void;
@@ -42,6 +50,10 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
     ip_address: device?.ip_address ?? "",
     mac_address: device?.mac_address ?? "",
     integration_type: device?.integration_type ?? "xiaomi",
+    properties: device?.properties ?? {
+      capabilities: [],
+      supported_features: [],
+    },
     config: device?.config ?? {},
   });
   const { errorMessage, displayError, clearError } = useError();
