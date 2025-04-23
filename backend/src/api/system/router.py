@@ -5,7 +5,15 @@ Violt Core Lite - API Router for System
 
 This module handles system API endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Body
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    Query,
+    BackgroundTasks,
+    Body,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func as sql_func  # Import func for count
@@ -13,7 +21,7 @@ from typing import List, Optional, Dict, Any
 import logging
 import platform
 import psutil
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import asyncio
 from pathlib import Path
@@ -33,6 +41,7 @@ from ...core.config import settings, DEFAULT_DATA_DIR, SYSTEM_DRIVE
 
 # Import utility functions if they exist
 from ...core import system_utils
+from ...core.websocket import manager as websocket_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -41,10 +50,14 @@ router = APIRouter()
 try:
     # Attempt to read from a file if persistence across restarts is desired
     with open(DEFAULT_DATA_DIR / ".startup_time", "r") as f:
-        STARTUP_TIME = datetime.fromisoformat(f.read().strip())
+        raw = f.read().strip()
+        parsed = datetime.fromisoformat(raw)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        STARTUP_TIME = parsed
     logger.info(f"Read previous startup time: {STARTUP_TIME}")
 except Exception:
-    STARTUP_TIME = datetime.utcnow()
+    STARTUP_TIME = datetime.now(timezone.utc)
     try:
         # Save current startup time
         os.makedirs(DEFAULT_DATA_DIR, exist_ok=True)
@@ -115,7 +128,12 @@ async def get_system_status(
     db: AsyncSession = Depends(get_db),
 ):
     """Get overall system status, version, uptime, and entity counts."""
-    uptime_delta = datetime.utcnow() - STARTUP_TIME
+    # Ensure both current time and startup time are timezone-aware UTC
+    now = datetime.now(timezone.utc)
+    startup = STARTUP_TIME
+    if startup.tzinfo is None:
+        startup = startup.replace(tzinfo=timezone.utc)
+    uptime_delta = now - startup
     uptime_str = format_uptime(uptime_delta)
 
     device_count = 0
@@ -124,19 +142,36 @@ async def get_system_status(
 
     # Get connected WebSocket clients (example, needs actual implementation in websocket manager)
     connected_clients = 0
-    # if hasattr(websocket_manager, 'get_total_connections'):
-    #    connected_clients = websocket_manager.get_total_connections()
+    if hasattr(websocket_manager, "get_total_connections"):
+        connected_clients = websocket_manager.get_total_connections()
+
+    # Determine system health status
+    try:
+        cpu_usage = psutil.cpu_percent(interval=None)
+        memory_usage = psutil.virtual_memory().percent
+        # Always use configured drive to avoid missing settings attribute
+        disk_usage = system_utils.get_disk_usage(SYSTEM_DRIVE).get("percent", 0)
+        if cpu_usage > 95 or memory_usage > 95 or disk_usage > 95:
+            status_val = "error"
+        elif cpu_usage > 90 or memory_usage > 90 or disk_usage > 90:
+            status_val = "degraded"
+        else:
+            status_val = "running"
+    except Exception as e:
+        logger.error(f"Error determining system health: {e}")
+        status_val = "unknown"
 
     return SystemStatus(
-        status="running",  # Could be 'degraded' if some checks fail
+        status=status_val,
         version=settings.APP_VERSION,
         uptime=uptime_str,
         device_count=device_count,
         automation_count=automation_count,
         last_event=last_event_time,
         # Add more status indicators if needed
-        # platform=settings.PLATFORM, # Removed as per schema, add if needed
-        # connected_clients=connected_clients,
+        platform=settings.PLATFORM,  # Removed as per schema, add if needed
+        connected_clients=connected_clients,
+        isWindows=settings.IS_WINDOWS,
     )
 
 
@@ -328,7 +363,7 @@ async def _run_backup_task(task_id: str, backup_path: Path):
     logger.info(f"Starting backup task {task_id} to {backup_path}...")
     await asyncio.sleep(5)  # Simulate backup time
     # Actual backup logic: copy DB file, config files, etc. to a timestamped archive
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     archive_name = backup_path / f"violt_backup_{timestamp}.zip"  # Example
     logger.info(f"Backup task {task_id} finished (simulation). Archive: {archive_name}")
     # Update task status in DB or via WebSocket?

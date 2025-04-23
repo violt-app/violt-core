@@ -13,8 +13,8 @@ import { Device } from "@/types/device-type";
 import { useError } from "@/lib/error";
 
 export default function DevicesPage() {
-    const { devices: fetchedDevices, fetchDevices, addDevice, connectDevice } = useDevices();
-    const { setError } = useError();
+    const { devices: fetchedDevices, fetchDevices, addDevice, connectDevice, deleteDevice, updateDevice } = useDevices();
+    const { clearError } = useError();
     const [devices, setDevices] = useState<Device[]>([]);
 
     useEffect(() => {
@@ -45,6 +45,7 @@ export default function DevicesPage() {
     }, [fetchedDevices]);
 
     const [isAddingDevice, setIsAddingDevice] = useState(false);
+    const [isDeletingDevice, setIsDeletingDevice] = useState(false);
     const [editingDevice, setEditingDevice] = useState<Device | null>(null);
 
     const handleAddDevice = (newDevice: Device) => {
@@ -55,19 +56,40 @@ export default function DevicesPage() {
     };
 
     const handleEditDevice = (updatedDevice: Device) => {
-        setDevices(devices.map((device) =>
-            device.id === updatedDevice.id ? updatedDevice : device
-        ));
-        setEditingDevice(null);
+        clearError();
+        setEditingDevice(updatedDevice);
+
+        // Assuming updateDevice is a function that updates the device and returns a promise
+        updateDevice(updatedDevice.id, updatedDevice).then(() => {
+            setDevices((prev) =>
+                prev.map((device) => (device.id === updatedDevice.id ? updatedDevice : device))
+            );
+        }).catch(() => {
+            // Handle error if needed
+        }).finally(() => {
+            setEditingDevice(null);
+        });
     };
 
     const handleDeleteDevice = (id: string) => {
-        setDevices((prev) => prev.filter((device) => device.id !== id));
+        setIsDeletingDevice(true);
+        // Assuming deleteDevice is a function that deletes the device and returns a promise
+        deleteDevice(id).then(() => {
+            setDevices((prev) => prev.filter((device) => device.id !== id));
+        }).catch(() => {
+            // Handle error if needed
+            setIsDeletingDevice(false);
+        });
     };
 
     const handleConnectDevice = async (id: string) => {
-        let result = await connectDevice(id);
-        setError(result.detail);
+        clearError();
+        try {
+            await connectDevice(id);
+            // status will be refreshed via fetchDevices -> fetchedDevices effect
+        } catch {
+            // connectDevice sets error and triggers fetchDevices if applicable
+        }
     }
 
     return (
@@ -89,6 +111,10 @@ export default function DevicesPage() {
                         onSubmit={handleEditDevice}
                         onCancel={() => setEditingDevice(null)}
                     />
+                )}
+
+                {isDeletingDevice && (
+                    <div className="text-red-500">Deleting device...</div>
                 )}
 
                 {!isAddingDevice && !editingDevice && (

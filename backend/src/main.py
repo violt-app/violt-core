@@ -4,12 +4,24 @@ Violt Core Lite - Main Application
 This module initializes the FastAPI application and includes all routers.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.staticfiles import StaticFiles
-from .database.session import initialize_database
+from .database.session import initialize_database, get_db
 from .core.config import settings
+from .core.websocket import (
+    get_token_from_query,
+    get_current_user,
+    handle_device_updates,
+    handle_automation_updates,
+    handle_event_updates,
+    send_device_update,
+    send_automation_update,
+    send_event_notification,
+)
+from sqlalchemy.ext.asyncio import AsyncSession
+
 import os
 import logging
 import importlib
@@ -119,6 +131,7 @@ async def health_check():
     }
 
 
+# API endpoints
 app.include_router(auth_router.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(devices_router.router, prefix="/api/devices", tags=["Devices"])
 app.include_router(
@@ -129,6 +142,74 @@ app.include_router(
     integrations_router.router, prefix="/api/integrations", tags=["Integrations"]
 )
 app.include_router(events_router.router, prefix="/api/events", tags=["Events"])
+
+
+# Websocket endpoints
+@app.websocket("/ws/devices")
+async def ws_devices(
+    websocket: WebSocket,
+    token: str = Depends(get_token_from_query),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_current_user(token, db)
+    logger.info(f"WebSocket /ws/devices handshake for user {user.id}")
+    await handle_device_updates(websocket, user)
+
+
+@app.websocket("/ws/automations")
+async def ws_automations(
+    websocket: WebSocket,
+    token: str = Depends(get_token_from_query),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_current_user(token, db)
+    logger.info(f"WebSocket /ws/automations handshake for user {user.id}")
+    await handle_automation_updates(websocket, user)
+
+
+@app.websocket("/ws/events")
+async def ws_events(
+    websocket: WebSocket,
+    token: str = Depends(get_token_from_query),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_current_user(token, db)
+    logger.info(f"WebSocket /ws/events handshake for user {user.id}")
+    await handle_event_updates(websocket, user)
+
+
+@app.websocket("/ws/send/devices")
+async def ws_send_devices(
+    websocket: WebSocket,
+    token: str = Depends(get_token_from_query),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_current_user(token, db)
+    logger.info(f"WebSocket /ws/send/devices handshake for user {user.id}")
+    await send_device_update(websocket, user)
+
+
+@app.websocket("/ws/send/automations")
+async def ws_send_automations(
+    websocket: WebSocket,
+    token: str = Depends(get_token_from_query),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_current_user(token, db)
+    logger.info(f"WebSocket /ws/send/automations handshake for user {user.id}")
+    await send_automation_update(websocket, user)
+
+
+@app.websocket("/ws/send/events")
+async def ws_send_events(
+    websocket: WebSocket,
+    token: str = Depends(get_token_from_query),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_current_user(token, db)
+    logger.info(f"WebSocket /ws/send/events handshake for user {user.id}")
+    await send_event_notification(websocket, user)
+
 
 # Mount static files
 static_dir = "static"
