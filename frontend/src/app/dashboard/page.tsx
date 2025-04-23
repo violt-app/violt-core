@@ -8,6 +8,7 @@ import { useDevices } from "@/lib/devices";
 import { useAutomations } from "@/lib/automations";
 import { useApi, SystemStatus, SystemStats } from "@/lib/api";
 import { useEffect, useState } from "react";
+import { useWebSocket } from "@/lib/websocket";
 
 export default function DashboardPage() {
   // This is a client component that will be hydrated on the client side
@@ -22,37 +23,57 @@ function DashboardContent() {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { connect, lastMessage, sendMessage, isConnected } = useWebSocket();
+
+  // on mount, subscribe to device updates
+  useEffect(() => {
+    connect('devices');               // opens /ws/devices?token=…
+  }, [connect]);
+
+  // whenever the server pushes device state
+  useEffect(() => {
+    if (lastMessage) {
+      // update your Redux/store/local state…
+      console.log('new device payload:', lastMessage);
+    }
+  }, [lastMessage]);
+
+  // if you need to send a control message back
+  const rebootDevice = (deviceId: string) => {
+    sendMessage({ type: 'reboot', payload: { deviceId } });
+  };
 
   useEffect(() => {
-    const fetchSystemStatus = async () => {
+    const fetchData = async () => {
       try {
-        const status = await getSystemStatus();
+        const [status, stats] = await Promise.all([getSystemStatus(), getSystemStats()]);
         setSystemStatus(status);
-      } catch (error) {
-        console.error("Failed to fetch system status:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSystemStatus();
-
-    const fetchSystemStats = async () => {
-      try {
-        const stats = await getSystemStats();
         setSystemStats(stats);
       } catch (error) {
-        console.error("Failed to fetch system stats:", error);
+        console.error("Failed to fetch system data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchSystemStats();
-  }, [getSystemStatus, getSystemStats]);
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const onlineDevices = devices?.filter(device => device.status === "online").length || 0;
+  const onlineDevices = devices?.filter(device => device.status === "connected").length || 0;
   const enabledAutomations = automations?.filter(automation => automation.enabled).length || 0;
+
+  console.log("System Status:", systemStatus);
+  console.log("System Stats:", systemStats);
+  console.log("Devices:", devices);
+  console.log("Automations:", automations);
+  console.log("WebSocket Connected:", isConnected);
+  console.log("WebSocket Last Message:", lastMessage);
+  console.log("WebSocket Send Message:", sendMessage);
+  console.log("WebSocket Reboot Device:", rebootDevice);
+  console.log("WebSocket Connect:", connect);
+  console.log("WebSocket Is Connected:", isConnected);
+  console.log("WebSocket Is Loading:", isLoading);
 
   return (
     <MainLayout
@@ -131,25 +152,25 @@ function DashboardContent() {
                       <p className="font-medium">System started</p>
                       <p className="text-sm text-muted-foreground">Violt Core service initialized</p>
                     </div>
-                    <div className="text-sm text-muted-foreground">2 hours ago</div>
+                    <div className="text-sm text-muted-foreground">{systemStatus?.uptime ?? 0}</div>
                   </div>
                 </div>
                 <div className="border-b pb-2">
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="font-medium">Device connected</p>
-                      <p className="text-sm text-muted-foreground">Living Room Light is now online</p>
+                      <p className="text-sm text-muted-foreground">Number of devices connected</p>
                     </div>
-                    <div className="text-sm text-muted-foreground">1 hour ago</div>
+                    <div className="text-sm text-muted-foreground">{systemStatus?.device_count ?? 0}</div>
                   </div>
                 </div>
                 <div className="border-b pb-2">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-medium">Automation triggered</p>
-                      <p className="text-sm text-muted-foreground">Morning Routine executed successfully</p>
+                      <p className="font-medium">Automations</p>
+                      <p className="text-sm text-muted-foreground">Number of automations</p>
                     </div>
-                    <div className="text-sm text-muted-foreground">45 minutes ago</div>
+                    <div className="text-sm text-muted-foreground">{systemStatus?.automation_count ?? 0}</div>
                   </div>
                 </div>
               </div>
@@ -184,11 +205,11 @@ function DashboardContent() {
                 </div>
                 <div className="flex justify-between">
                   <div className="text-sm font-medium">Connected Clients</div>
-                  <div className="text-sm">{systemStats?.device_stats.length || 1}</div>
+                  <div className="text-sm">{systemStats?.device_stats.length ?? 0}</div>
                 </div>
                 <div className="flex justify-between">
                   <div className="text-sm font-medium">Platform</div>
-                  <div className="text-sm">Raspberry Pi / Docker</div>
+                  <div className="text-sm" style={{ textTransform: 'capitalize' }}>{systemStatus?.platform ?? (systemStatus?.isWindows ? "Windows" : "Unknown")}</div>
                 </div>
               </div>
             )}

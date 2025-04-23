@@ -63,7 +63,7 @@ export function Header({ className, title, subtitle, actions }: HeaderProps) {
         )}
       </div>
 
-      <div className="flex-1">
+      <div className="flex-col flex-1 gap-1 md:flex-row md:items-center md:gap-4">
         {title && <h1 className="text-lg font-semibold">{title}</h1>}
         {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
       </div>
@@ -73,6 +73,7 @@ export function Header({ className, title, subtitle, actions }: HeaderProps) {
           <form className="relative" onSubmit={handleSearch}>
             <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
+              name="search"
               type="search"
               placeholder="Search..."
               className="w-64 pl-8"
@@ -118,6 +119,8 @@ export function Header({ className, title, subtitle, actions }: HeaderProps) {
     </div>
   );
 }
+
+
 
 function MenuIcon({ className }: { readonly className?: string }) {
   return (

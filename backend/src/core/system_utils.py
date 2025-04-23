@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from .config import settings
+from .config import settings, SYSTEM_DRIVE
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ def get_disk_usage(path: str = None) -> Dict[str, float]:
     
     if path is None:
         # Use system drive if no path specified
-        path = settings.SYSTEM_DRIVE
+        path = SYSTEM_DRIVE
     
     try:
         usage = psutil.disk_usage(path)
