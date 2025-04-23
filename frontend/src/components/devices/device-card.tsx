@@ -5,11 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Device } from "@/types/device-type";
 import { DeviceState } from "@/types/device-state-type";
 import { DeviceResponse } from "@/types/device-response-type";
-import { useError } from "@/lib/error";
 import React from "react";
 
 interface DeviceCardProps {
@@ -30,30 +29,32 @@ interface DeviceCardProps {
   onUpdateNetwork?: (id: string) => void;
 }
 
-export function DeviceCard({
-  device,
-  onToggle,
-  onEdit,
-  onDelete,
-  onConnect,
-  onDisconnect,
-  onUpdate,
-  onRefresh,
-  onRename,
-  onReboot,
-  onFactoryReset,
-  onUpdateFirmware,
-  onUpdateSettings,
-  onUpdateConfig,
-  onUpdateNetwork,
-}: Readonly<DeviceCardProps>) {
+export function DeviceCard({ device, onToggle, onEdit, onDelete, onConnect, onDisconnect }: Readonly<DeviceCardProps>) {
   // Handle device state and status
   const powerState = device.state?.power ?? "unknown";
-  let status = device.status;
+  // Track and update device status locally
+  const [statusState, setStatusState] = useState<Device['status']>(device.status);
+  console.log("Device status:", statusState);
+  // Sync statusState to server-driven prop; clear connecting flag and errors appropriately
+  useEffect(() => {
+    setStatusState(device.status);
+    // if not in connecting, clear local connecting flag
+    if (device.status !== 'connecting') {
+      setIsConnecting(false);
+    }
+    // clear previous errors on successful connect
+    if (device.status === 'connected') {
+      clearError();
+    }
+  }, [device.status]);
+  // Local error for this device only
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const clearError = () => setErrorMessage(null);
+  const setError = (msg: string) => setErrorMessage(msg);
   const capabilities = device.properties?.capabilities || [];
   const [isPowered, setIsPowered] = useState(powerState === "on");
-  const [isConnecting, setIsConnecting] = useState(status === "connecting");
-  const { clearError, setError, displayError, errorMessage } = useError();
+  const [isConnecting, setIsConnecting] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleToggle = (checked: boolean) => {
     setIsPowered(checked);
@@ -113,21 +114,32 @@ export function DeviceCard({
     return stateItems;
   };
 
-  const handleConnect = async () => {
+  const handleConnect = () => {
     clearError();
-
-    if (!device.id || isConnecting) return;
-
-    setIsConnecting(true);
-    try {
-      await onConnect?.(device.id);
-    } catch (error) {
-      // Assuming you have a setError function from your error context
-      setError(error instanceof Error ? error.message : 'Failed to connect device');
-    } finally {
+    if (!device.id) return;
+    if (isConnecting) {
+      // cancel connection
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setStatusState('offline');
       setIsConnecting(false);
+      onDisconnect?.(device.id);
+      return;
     }
+    // initiate connection
+    setStatusState('connecting');
+    setIsConnecting(true);
+    onConnect?.(device.id);
+    // timeout to revert if no server update
+    timerRef.current = setTimeout(() => {
+      setError('Connection timed out');
+      setStatusState('offline');
+      setIsConnecting(false);
+      onDisconnect?.(device.id);
+      timerRef.current = null;
+    }, 10000);
   };
+
+  // local statusState and errorMessage are per-device; cleanup handled in handleConnect
 
   return (
     <Card className="overflow-hidden">
@@ -145,10 +157,25 @@ export function DeviceCard({
             </div>
           </div>
           <Badge
-            variant={device.status === "connected" ? "default" : "outline"}
-            className={device.status === "error" ? "bg-destructive text-destructive-foreground" : ""}
+            variant={statusState === "connected" ? "default" : "outline"}
+            className={
+              statusState === "error"
+                ? "bg-destructive text-destructive-foreground"
+                : statusState === "unknown"
+                ? "bg-muted text-muted-foreground"
+                : ""
+            }
           >
-            {device.status}
+            {(() => {
+              switch (statusState) {
+                case "connected": return "Connected";
+                case "connecting": return "Connecting...";
+                case "offline": return "Offline";
+                case "error": return "Error";
+                case "unknown": return "Unknown";
+                default: return statusState;
+              }
+            })()}
           </Badge>
         </div>
       </CardHeader>
@@ -164,7 +191,7 @@ export function DeviceCard({
                   id={`power-${device.id}`}
                   checked={isPowered}
                   onCheckedChange={handleToggle}
-                  disabled={device.status !== "connected"}
+                  disabled={statusState !== "connected"}
                 />
               </div>
             )}
@@ -191,23 +218,15 @@ export function DeviceCard({
           )}
         </div>
         <div className="inline-flex items-center gap-4">
-          {/* Add the connect button */}
-          {status === 'offline' && (
+          {/* Connect button for offline, connecting, or unknown */}
+          {(statusState === 'offline' || statusState === 'connecting' || statusState === 'unknown') && (
             <Button
               variant="outline"
               size="sm"
               onClick={handleConnect}
-              disabled={isConnecting}
             >
-              {isConnecting ? (
-                <>
-                  <span className="animate-spin mr-2">⭮</span>
-                  Connecting...
-                </>
-              ) : (
-                'Connect'
-              )}
-              {errorMessage && displayError()}
+              {isConnecting && <span className="animate-spin mr-2">⭮</span>}
+              {isConnecting ? 'Cancel Connection' : 'Connect'}
             </Button>
           )}
 
@@ -224,6 +243,11 @@ export function DeviceCard({
           )}
         </div>
       </CardFooter>
+      {errorMessage && (
+        <div className="pt-4 pl-4 text-destructive">
+          {errorMessage}
+        </div>
+      )}
     </Card>
   );
 

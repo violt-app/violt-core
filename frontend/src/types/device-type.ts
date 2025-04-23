@@ -4,7 +4,8 @@ export enum DeviceStatus {
     CONNECTED = "connected",
     OFFLINE = "offline",
     ERROR = "error",
-    CONNECTING = "connecting"
+    CONNECTING = "connecting",
+    UNKNOWN = "unknown"
 }
 
 export enum DeviceCapability {
@@ -33,7 +34,7 @@ export interface Device {
     ip_address?: string;
     mac_address?: string;
     integration_type: string;
-    status: "connected" | "offline" | "error" | "connecting";
+    status: "connected" | "offline" | "error" | "connecting" | "unknown";
     properties: DeviceProperties;
     state: DeviceState;
     created_at?: Date;
