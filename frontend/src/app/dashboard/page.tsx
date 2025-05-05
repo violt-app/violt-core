@@ -9,6 +9,10 @@ import { useAutomations } from "@/lib/automations";
 import { useApi, SystemStatus, SystemStats } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useWebSocket } from "@/lib/websocket";
+import { MemoryIcon } from "@/components/icons/memory-icon";
+import { CpuIcon } from "@/components/icons/cpu-icon";
+import { AutomationIcon } from "@/components/icons/automation-icon";
+import { DeviceIcon } from "@/components/icons/device-icon";
 
 export default function DashboardPage() {
   // This is a client component that will be hydrated on the client side
@@ -23,7 +27,7 @@ function DashboardContent() {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { connect, lastMessage, sendMessage, isConnected } = useWebSocket();
+  const { connect, lastMessage, sendMessage } = useWebSocket();
 
   // on mount, subscribe to device updates
   useEffect(() => {
@@ -62,18 +66,6 @@ function DashboardContent() {
 
   const onlineDevices = devices?.filter(device => device.status === "connected").length || 0;
   const enabledAutomations = automations?.filter(automation => automation.enabled).length || 0;
-
-  console.log("System Status:", systemStatus);
-  console.log("System Stats:", systemStats);
-  console.log("Devices:", devices);
-  console.log("Automations:", automations);
-  console.log("WebSocket Connected:", isConnected);
-  console.log("WebSocket Last Message:", lastMessage);
-  console.log("WebSocket Send Message:", sendMessage);
-  console.log("WebSocket Reboot Device:", rebootDevice);
-  console.log("WebSocket Connect:", connect);
-  console.log("WebSocket Is Connected:", isConnected);
-  console.log("WebSocket Is Loading:", isLoading);
 
   return (
     <MainLayout
@@ -217,99 +209,5 @@ function DashboardContent() {
         </Card>
       </div>
     </MainLayout>
-  );
-}
-
-function DeviceIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <rect width="20" height="14" x="2" y="3" rx="2" />
-      <line x1="8" x2="16" y1="21" y2="21" />
-      <line x1="12" x2="12" y1="17" y2="21" />
-    </svg>
-  );
-}
-
-function AutomationIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M12 2H2v10h10V2Z" />
-      <path d="M22 12h-4v4h4v-4Z" />
-      <path d="M6 16H2v6h4v-6Z" />
-      <path d="M22 20h-4v4h4v-4Z" />
-      <path d="M14 2h8v6h-8V2Z" />
-      <path d="M6 12V8" />
-      <path d="M12 12v4" />
-      <path d="M16 12V8" />
-    </svg>
-  );
-}
-
-function CpuIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-      <rect x="9" y="9" width="6" height="6" />
-      <path d="M15 2v2" />
-      <path d="M15 20v2" />
-      <path d="M2 15h2" />
-      <path d="M20 15h2" />
-      <path d="M9 2v2" />
-      <path d="M9 20v2" />
-      <path d="M2 9h2" />
-      <path d="M20 9h2" />
-    </svg>
-  );
-}
-
-function MemoryIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M6 19v-3" />
-      <path d="M10 19v-3" />
-      <path d="M14 19v-3" />
-      <path d="M18 19v-3" />
-      <path d="M8 11V9" />
-      <path d="M16 11V9" />
-      <path d="M12 11V9" />
-      <path d="M2 15h20" />
-      <path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7z" />
-    </svg>
   );
 }

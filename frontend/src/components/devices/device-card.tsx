@@ -8,8 +8,16 @@ import { Label } from "@/components/ui/label";
 import { useEffect, useState, useRef } from "react";
 import { Device } from "@/types/device-type";
 import { DeviceState } from "@/types/device-state-type";
-import { DeviceResponse } from "@/types/device-response-type";
 import React from "react";
+import { useError } from "@/lib/error";
+import { DeviceIcon } from "../icons/device-icon";
+import { PencilIcon } from "../icons/pencil-icon";
+import { TrashIcon } from "../icons/trash-icon";
+import { VacuumIcon } from "../icons/vacuum-icon";
+import { SensorIcon } from "../icons/sensor-icon";
+import { ThermostatIcon } from "../icons/thermostat-icon";
+import { PlugIcon } from "../icons/plug-icon";
+import { LightbulbIcon } from "../icons/lightbulb-icon";
 
 interface DeviceCardProps {
   device: Device;
@@ -30,11 +38,21 @@ interface DeviceCardProps {
 }
 
 export function DeviceCard({ device, onToggle, onEdit, onDelete, onConnect, onDisconnect }: Readonly<DeviceCardProps>) {
+
   // Handle device state and status
   const powerState = device.state?.power ?? "unknown";
+
   // Track and update device status locally
   const [statusState, setStatusState] = useState<Device['status']>(device.status);
-  console.log("Device status:", statusState);
+
+  // Local error for this device only
+  const { setError, clearError, displayError } = useError();
+
+  const capabilities = device.properties?.capabilities || [];
+  const [isPowered, setIsPowered] = useState(powerState === "on");
+  const [isConnecting, setIsConnecting] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Sync statusState to server-driven prop; clear connecting flag and errors appropriately
   useEffect(() => {
     setStatusState(device.status);
@@ -46,15 +64,7 @@ export function DeviceCard({ device, onToggle, onEdit, onDelete, onConnect, onDi
     if (device.status === 'connected') {
       clearError();
     }
-  }, [device.status]);
-  // Local error for this device only
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const clearError = () => setErrorMessage(null);
-  const setError = (msg: string) => setErrorMessage(msg);
-  const capabilities = device.properties?.capabilities || [];
-  const [isPowered, setIsPowered] = useState(powerState === "on");
-  const [isConnecting, setIsConnecting] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  }, [clearError, device.status]);
 
   const handleToggle = (checked: boolean) => {
     setIsPowered(checked);
@@ -131,7 +141,7 @@ export function DeviceCard({ device, onToggle, onEdit, onDelete, onConnect, onDi
     onConnect?.(device.id);
     // timeout to revert if no server update
     timerRef.current = setTimeout(() => {
-      setError('Connection timed out');
+      setError('', new Error('Connection timed out'));
       setStatusState('offline');
       setIsConnecting(false);
       onDisconnect?.(device.id);
@@ -162,8 +172,8 @@ export function DeviceCard({ device, onToggle, onEdit, onDelete, onConnect, onDi
               statusState === "error"
                 ? "bg-destructive text-destructive-foreground"
                 : statusState === "unknown"
-                ? "bg-muted text-muted-foreground"
-                : ""
+                  ? "bg-muted text-muted-foreground"
+                  : ""
             }
           >
             {(() => {
@@ -243,167 +253,11 @@ export function DeviceCard({ device, onToggle, onEdit, onDelete, onConnect, onDi
           )}
         </div>
       </CardFooter>
-      {errorMessage && (
+      {
         <div className="pt-4 pl-4 text-destructive">
-          {errorMessage}
+          {displayError()}
         </div>
-      )}
+      }
     </Card>
   );
-
-  function DeviceIcon({ className }: { readonly className?: string }) {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-      >
-        <rect width="20" height="14" x="2" y="3" rx="2" />
-        <line x1="8" x2="16" y1="21" y2="21" />
-        <line x1="12" x2="12" y1="17" y2="21" />
-      </svg>
-    );
-  }
-
-  function LightbulbIcon({ className }: { readonly className?: string }) {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-      >
-        <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
-        <path d="M9 18h6" />
-        <path d="M10 22h4" />
-      </svg>
-    );
-  }
-
-  function PlugIcon({ className }: { readonly className?: string }) {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-      >
-        <path d="M12 22v-5" />
-        <path d="M9 7V2" />
-        <path d="M15 7V2" />
-        <path d="M6 13V8h12v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4Z" />
-      </svg>
-    );
-  }
-
-  function ThermostatIcon({ className }: { readonly className?: string }) {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-      >
-        <path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" />
-        <path d="M12 10v4" />
-      </svg>
-    );
-  }
-
-  function SensorIcon({ className }: { readonly className?: string }) {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-      >
-        <path d="M7 22H2V7h10" />
-        <path d="M22 7v10.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5V10h-8V7h11Z" />
-        <path d="M7 7v10.5c0 .83-.67 1.5-1.5 1.5S4 18.33 4 17.5V7" />
-        <path d="M4 7V5c0-1.1.9-2 2-2h12a2 2 0 0 1 2 2v2" />
-        <path d="M11 16a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
-      </svg>
-    );
-  }
-
-  function VacuumIcon({ className }: { readonly className?: string }) {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-      >
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v4" />
-        <path d="M2 12h4" />
-        <path d="M12 18v4" />
-        <path d="M18 12h4" />
-      </svg>
-    );
-  }
-
-  function PencilIcon({ className }: { readonly className?: string }) {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-      >
-        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-        <path d="m15 5 4 4" />
-      </svg>
-    );
-  }
-
-  function TrashIcon({ className }: { readonly className?: string }) {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-      >
-        <path d="M3 6h18" />
-        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-      </svg>
-    );
-  }
 }

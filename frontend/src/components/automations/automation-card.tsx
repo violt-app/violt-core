@@ -5,18 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
+import { Automation } from "@/types/automation-type";
 
 interface AutomationCardProps {
-  automation: {
-    id: string;
-    name: string;
-    description?: string;
-    enabled: boolean;
-    lastTriggered?: string;
-    triggerType: string;
-    conditions: number;
-    actions: number;
-  };
+  automation: Automation;
   onToggle?: (id: string, enabled: boolean) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -40,7 +32,7 @@ export function AutomationCard({
   };
 
   const getTriggerIcon = () => {
-    switch (automation.triggerType) {
+    switch (automation.trigger_type) {
       case "time":
         return <ClockIcon className="h-5 w-5" />;
       case "device_state":
@@ -55,9 +47,9 @@ export function AutomationCard({
   };
 
   const formatLastTriggered = () => {
-    if (!automation.lastTriggered) return "Never triggered";
+    if (!automation.last_triggered) return "Never triggered";
 
-    const date = new Date(automation.lastTriggered);
+    const date = new Date(automation.last_triggered);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -83,7 +75,7 @@ export function AutomationCard({
             <div>
               <CardTitle className="text-base">{automation.name}</CardTitle>
               <CardDescription>
-                {automation.description || `${automation.triggerType} trigger`}
+                {automation.description || `${automation.trigger_type} trigger`}
               </CardDescription>
             </div>
           </div>
@@ -98,15 +90,23 @@ export function AutomationCard({
         <div className="grid gap-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Trigger Type</span>
-            <Badge variant="outline">{automation.triggerType}</Badge>
+            <Badge variant="outline">{automation.trigger_type}</Badge>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Conditions</span>
-            <span>{automation.conditions}</span>
+            <span>
+              {automation.conditions.map((condition, index) => (
+                <span key={index}>{condition.type}</span>
+              ))}
+            </span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Actions</span>
-            <span>{automation.actions}</span>
+            <span>
+              {automation.actions.map((action, index) => (
+                <span key={index}>{action.type}</span>
+              ))}
+            </span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Last Triggered</span>

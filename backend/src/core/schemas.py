@@ -231,6 +231,32 @@ class DeviceState(BaseSchema):
     )
 
 
+class DeviceCommand(BaseSchema):
+    """Schema for device command."""
+
+    command: str
+    payload: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "command": "set_state",
+                "payload": {"power": "on", "brightness": 80},
+            }
+        }
+    )
+
+
+class DiscoveredBleDevice(BaseModel):
+    name: Optional[str] = None
+    address: str
+    rssi: int
+    metadata: Optional[Dict[str, Any]] = None
+    details: Optional[Any] = (
+        None  # Can hold the raw Bleak device object if needed temporarily
+    )
+
+
 class DeviceProperties(BaseSchema):
     """Schema for device capabilities and properties."""
 
@@ -468,6 +494,25 @@ class SystemStats(BaseSchema):
             }
         }
     )
+
+
+# BLE schemas
+class BLEService(BaseSchema):
+    """Schema for BLE service."""
+    uuid: str
+    description: Optional[str] = None
+    primary: bool = True
+
+
+class BLECharacteristic(BaseSchema):
+    """Schema for BLE characteristic."""
+    uuid: str
+    service_uuid: str
+    description: Optional[str] = None
+    properties: List[str] = Field(default_factory=list)
+    readable: bool = False
+    writable: bool = False
+    notifiable: bool = False
 
 
 # Integration schemas

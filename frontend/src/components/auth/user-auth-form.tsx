@@ -111,7 +111,7 @@ export function UserAuthForm({
               <Input
                 id="username"
                 name="username"
-                placeholder="username"
+                placeholder="Username"
                 type="text"
                 autoCapitalize="none"
                 autoComplete="username"
@@ -147,6 +147,8 @@ export function UserAuthForm({
                 name="password"
                 type="password"
                 autoCapitalize="none"
+                placeholder="Password"
+                autoCorrect="off"
                 autoComplete={type === "login" ? "current-password" : "new-password"}
                 disabled={isLoading}
                 value={formData.password}
@@ -163,6 +165,7 @@ export function UserAuthForm({
                   type="password"
                   autoCapitalize="none"
                   autoComplete="new-password"
+                  placeholder="Confirm Password"
                   disabled={isLoading}
                   value={formData.confirmPassword}
                   onChange={handleChange}

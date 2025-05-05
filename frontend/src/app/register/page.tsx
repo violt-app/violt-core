@@ -38,16 +38,6 @@ export default function RegisterPage() {
             <UserAuthForm type="register" />
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            {/* <div className="flex items-center space-x-2">
-              <Checkbox id="terms" />
-              <Label htmlFor="terms" className="text-sm block">
-                I agree to the{" "}
-                <Link href="/terms" className="underline hover:text-primary">
-                  terms and conditions
-                </Link>{" "}
-                and consent to submit data to MongoDB for analytics purposes.
-              </Label>
-            </div> */}
             <div className="text-center text-sm">
               Already have an account?{" "}
               <Link href="/login" className="underline hover:text-primary">
