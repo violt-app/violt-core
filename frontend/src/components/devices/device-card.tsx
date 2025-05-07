@@ -9,7 +9,7 @@ import { useEffect, useState, useRef } from "react";
 import { Device } from "@/types/device-type";
 import { DeviceState } from "@/types/device-state-type";
 import React from "react";
-import { useError } from "@/lib/error";
+import { useError } from "@/services/error";
 import { DeviceIcon } from "../icons/device-icon";
 import { PencilIcon } from "../icons/pencil-icon";
 import { TrashIcon } from "../icons/trash-icon";

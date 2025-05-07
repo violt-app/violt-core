@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { Providers } from "@/lib/providers";
+import { Providers } from "@/services/providers";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { WebSocketProvider } from "@/lib/websocket";
+import { WebSocketProvider } from "@/services/websocket";
 import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });

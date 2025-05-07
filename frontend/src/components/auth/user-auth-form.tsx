@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth";
+import { cn } from "@/services/utils";
+import { useAuth } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useError } from "@/lib/error";
+import { useError } from "@/services/error";
 
 interface UserAuthFormProps extends Readonly<React.HTMLAttributes<HTMLDivElement>> {
   readonly type: "login" | "register";
@@ -58,15 +58,18 @@ export function UserAuthForm({
           throw new Error("Missing required registration fields");
         }
 
-        register({
+        await register({
           name: formData.name,
           username: formData.username,
           email: formData.email,
           password: formData.password,
           terms_accepted: formData.termsAccepted,
         });
+        // Automatically log in after successful registration
+        await login(formData.username, formData.password);
       }
     } catch (error: any) {
+      
       setError(error.message ?? "An error occurred. Please try again.");
     }
   }

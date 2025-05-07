@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth";
+import { cn } from "@/services/utils";
+import { useAuth } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sidebar } from "./sidebar";
-import { useError } from "@/lib/error";
+import { useError } from "@/services/error";
 
 interface HeaderProps {
   readonly className?: string;

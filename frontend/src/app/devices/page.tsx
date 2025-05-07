@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
-import { useDevices } from "@/lib/devices";
+import { useDevices } from "@/services/devices";
 import { Device } from "@/types/device-type";
-import { useError } from "@/lib/error";
+import { useError } from "@/services/error";
 
 export default function DevicesPage() {
     const { devices: fetchedDevices, fetchDevices, addDevice, connectDevice, deleteDevice, updateDevice } = useDevices();

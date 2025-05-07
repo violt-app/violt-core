@@ -7,7 +7,7 @@ import { Header } from "@/components/layout/header";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Button } from "@/components/ui/button";
-import { useAutomations } from "@/lib/automations";
+import { useAutomations } from "@/services/automations";
 import { Automation } from "@/types/automation-type";
 
 export default function AutomationsPage() {

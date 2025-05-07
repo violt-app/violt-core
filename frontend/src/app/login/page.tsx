@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/services/auth";
 import { UserAuthForm } from "@/components/auth/user-auth-form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";

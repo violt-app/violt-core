@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ReactNode, useEffect } from "react";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth";
+import { cn } from "@/services/utils";
+import { useAuth } from "@/services/auth";
 import { usePathname } from "next/navigation";
 
 interface SidebarProps {
