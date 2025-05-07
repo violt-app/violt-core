@@ -1,13 +1,14 @@
 # backend/src/core/config.py
 
 """
-Violt Core Lite - Configuration Module
+Violt Core - Configuration Module
 
 This module handles loading and validating application configuration from environment variables.
 """
-from pydantic import Field, field_validator, EmailStr, ConfigDict
+import json
+from pydantic import Field, field_validator, EmailStr, ConfigDict, validator
 from pydantic_settings import BaseSettings
-from typing import List, Dict, Any, Optional, ClassVar  # Import ClassVar
+from typing import List, Dict, Any, Optional, ClassVar, Union  # Import ClassVar
 import os
 import platform
 import sys
@@ -40,10 +41,11 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # Application settings
-    APP_NAME: str = "Violt Core Lite"
-    APP_VERSION: str = "0.1.0"
+    APP_NAME: str = "Violt-Core"
+    APP_VERSION: str = "1.0.1"
     DEBUG: bool = False
     LOG_LEVEL: str = "info"
+    ENVIRONMENT: str = "production"  # Default to production
 
     # Platform settings
     PLATFORM: str = platform.system()
@@ -56,7 +58,7 @@ class Settings(BaseSettings):
     RELOAD: bool = False
 
     # Database settings
-    DATABASE_URL: str = "sqlite:///./data/violt.db"
+    DATABASE_URL: str = "sqlite:///./violt.db"
     DATABASE_CONNECT_ARGS: Dict[str, Any] = {"check_same_thread": False}
 
     # Security settings
@@ -92,10 +94,33 @@ class Settings(BaseSettings):
     LOG_RETENTION: str = "30 days"
 
     # Windows service settings
-    WINDOWS_SERVICE_NAME: str = "VioltCoreLite"
-    WINDOWS_SERVICE_DISPLAY_NAME: str = "Violt Core Lite Service"
+    WINDOWS_SERVICE_NAME: str = "VioltCore"
+    WINDOWS_SERVICE_DISPLAY_NAME: str = "Violt Core Service"
     WINDOWS_SERVICE_DESCRIPTION: str = "Local smart home automation platform"
     WINDOWS_SERVICE_STARTUP: str = "auto"  # Kept as string
+
+    WINDOWS_SERVICE_STARTUP: str = "auto"  # Kept as string
+
+    # BLE Integration
+    BLE_SCAN_INTERVAL: int = 60
+    BLE_SCAN_TIMEOUT: int = 10
+    BLE_MAX_CONNECTION_ATTEMPTS: int = 5
+    BLE_CONNECTION_RETRY_BASE_WAIT: int = 5
+    BLE_CONNECTION_RETRY_MAX_WAIT: int = 120
+    BLE_MONITOR_INTERVAL: int = 30
+    BLE_DEVICE_FILTERS: dict = Field(default={})
+
+    @field_validator("BLE_DEVICE_FILTERS", mode="before")
+    def assemble_ble_filters(cls, v: Union[str, dict]) -> dict:
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                print(f"Warning: Could not parse BLE_DEVICE_FILTERS JSON string: {v}")
+                return {}
+        elif isinstance(v, dict):
+            return v
+        return {}
 
     # --- Validator for SECRET_KEY ---
     @field_validator("SECRET_KEY", mode="before")
@@ -129,6 +154,9 @@ class Settings(BaseSettings):
     )
 
 
+# Create a single instance of the settings
+settings = Settings()
+
 # --- Define DEFAULT_DATA_DIR etc. AFTER Settings class ---
 # (Path logic remains the same, needs APP_ROOT_DIR calculation)
 if getattr(sys, "frozen", False):
@@ -139,7 +167,7 @@ else:
 
 if platform.system() == "Windows":
     DEFAULT_DATA_DIR = (
-        Path(os.environ.get("PROGRAMDATA", APP_ROOT_DIR / "data")) / "VioltCoreLite"
+        Path(os.environ.get("PROGRAMDATA", APP_ROOT_DIR / "data")) / "VioltCore"
     )
     DEFAULT_CONFIG_DIR = DEFAULT_DATA_DIR / "config"
     DEFAULT_LOGS_DIR = DEFAULT_DATA_DIR / "logs"
@@ -183,3 +211,23 @@ try:
 except Exception as e:
     logger.critical(f"CRITICAL: Failed to initialize settings: {e}", exc_info=True)
     settings = None
+
+# Ensure the directory for the SQLite database exists
+if settings.DATABASE_URL.startswith("sqlite"):
+    db_path_str = settings.DATABASE_URL.split("///")[-1]
+    # Handle potential relative paths correctly
+    if not os.path.isabs(db_path_str):
+        # Assume relative to project root (one level above backend)
+        db_path = APP_ROOT_DIR / db_path_str
+    else:
+        db_path = Path(db_path_str)
+
+    db_dir = db_path.parent
+    try:
+        db_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Database directory ensured: {db_dir}")
+    except Exception as e:
+        logger.error(f"Error creating database directory {db_dir}: {e}")
+
+    logger.info(f"Loaded settings. Database URL: {settings.DATABASE_URL}")
+    logger.debug(f"Database path resolved: {db_path}")

@@ -1,11 +1,11 @@
 # backend/src/api/devices/router.py
 
 """
-Violt Core Lite - API Router for Devices
+Violt Core - API Router for Devices
 
 This module handles device API endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import delete as sql_delete
@@ -17,6 +17,7 @@ import asyncio
 import re
 
 from ...core.schemas import (
+    DeviceCommand,
     DeviceCreate,
     DeviceUpdate,
     DeviceResponse,
@@ -41,7 +42,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# Helper function (consider moving to a crud utility module)
+# Helper function (TODO: consider moving to a crud utility module)
 async def get_device_by_id(db: AsyncSession, device_id: str, user_id: str) -> Device:
     """Get a device by ID and verify ownership."""
     result = await db.execute(
@@ -657,17 +658,15 @@ async def update_device_state(
 @router.post("/{device_id}/command", response_model=Dict[str, Any])
 async def execute_device_command(
     device_id: str,
-    command_data: Dict[str, Any] = Body(
-        ...,
-        example={"command": "turn_on", "params": {"brightness": 80}},
-    ),
+    command_data: DeviceCommand,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
     """Execute a command on a device via its integration."""
     device_db = await get_device_by_id(db, device_id, current_user.id)
     command = command_data.get("command")
-    params = command_data.get("params", {})
+    payload = command_data.get("payload", {})
 
     if not command:
         raise HTTPException(
@@ -697,7 +696,7 @@ async def execute_device_command(
         device_db.status = DeviceStatus.CONNECTING
         await db.commit()
 
-        success = await integration_device.execute_command(command, params)
+        success = await integration_device.execute_command(command, payload)
         if success:
             # Get updated state from device
             new_state = await integration_device.get_state()
@@ -729,12 +728,26 @@ async def execute_device_command(
                 data={
                     "device_id": device_id,
                     "command": command,
-                    "params": params,
+                    "payload": payload,
                     "success": True,
                     "new_state": device_db.state,
                 },
                 device_id=device_id,
             )
+
+            # Optionally record telemetry data if needed
+            telemetry_service = request.app.state.telemetry_service
+            if telemetry_service:
+                await telemetry_service.record_event(
+                    event_type="device_command",
+                    params={
+                        "device_id": device_id,
+                        "integration": device_db.integration_type,
+                        "command": command,
+                        "payload": payload,
+                    },
+                    user_id=current_user.id,
+                )
 
             # Send WebSocket update
             await websocket_manager.send_personal_message(

@@ -3,6 +3,7 @@
 ## Core Data Models
 
 ### User
+
 - `id`: Unique identifier (UUID)
 - `username`: Username for login
 - `email`: Email address
@@ -13,6 +14,7 @@
 - `terms_accepted`: Boolean indicating acceptance of terms
 
 ### Device
+
 - `id`: Unique identifier (UUID)
 - `name`: User-friendly name
 - `type`: Device type (e.g., "light", "switch", "sensor")
@@ -30,6 +32,7 @@
 - `config`: JSON field for device configuration
 
 ### Automation
+
 - `id`: Unique identifier (UUID)
 - `name`: User-friendly name
 - `description`: Description of automation purpose
@@ -46,6 +49,7 @@
 - `last_modified`: Timestamp of last modification
 
 ### Event
+
 - `id`: Unique identifier (UUID)
 - `type`: Event type (e.g., "device_state_change", "automation_triggered")
 - `source`: Source of the event (device ID, system, etc.)
@@ -54,6 +58,7 @@
 - `processed`: Boolean indicating if event was processed by automation engine
 
 ### Log
+
 - `id`: Unique identifier (UUID)
 - `level`: Log level (info, warning, error, debug)
 - `source`: Source of the log (component name)
@@ -64,6 +69,7 @@
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/register`: Register a new user
 - `POST /api/auth/login`: Login and get access token
 - `POST /api/auth/logout`: Logout and invalidate token
@@ -72,6 +78,7 @@
 - `POST /api/auth/terms`: Accept terms and conditions
 
 ### Devices
+
 - `GET /api/devices`: List all devices
 - `GET /api/devices/{id}`: Get device details
 - `POST /api/devices`: Add a new device
@@ -84,6 +91,7 @@
 - `GET /api/devices/manufacturers`: Get list of supported manufacturers
 
 ### Automations
+
 - `GET /api/automations`: List all automations
 - `GET /api/automations/{id}`: Get automation details
 - `POST /api/automations`: Create a new automation
@@ -95,6 +103,7 @@
 - `POST /api/automations/{id}/test`: Test automation without executing actions
 
 ### System
+
 - `GET /api/system/status`: Get system status
 - `GET /api/system/stats`: Get system statistics
 - `POST /api/system/restart`: Restart the system
@@ -104,6 +113,7 @@
 - `GET /api/system/updates`: Check for updates
 
 ### Integrations
+
 - `GET /api/integrations`: List all available integrations
 - `GET /api/integrations/{type}`: Get integration details
 - `POST /api/integrations/{type}/setup`: Setup integration
@@ -112,6 +122,7 @@
 - `POST /api/integrations/{type}/sync`: Sync devices with integration
 
 ### Events
+
 - `GET /api/events`: Get recent events
 - `GET /api/events/{id}`: Get event details
 - `GET /api/events/device/{device_id}`: Get events for specific device
@@ -125,6 +136,7 @@
 ## Integration Specifications
 
 ### Xiaomi Integration
+
 - Protocol: Xiaomi MIoT Protocol
 - Discovery: mDNS/Bonjour
 - Authentication: Token-based
@@ -132,18 +144,21 @@
 - Configuration: IP address, token
 
 ### Amazon Alexa Integration
+
 - Protocol: Smart Home Skill API
 - Authentication: OAuth 2.0
 - Capabilities: Device discovery, state reporting, voice commands
 - Configuration: Skill ID, client ID, client secret
 
 ### Google Home Integration
+
 - Protocol: Smart Home Actions API
 - Authentication: OAuth 2.0
 - Capabilities: Device discovery, state reporting, voice commands
 - Configuration: Project ID, client ID, client secret
 
 ## MongoDB Integration
+
 - Purpose: Store usage data and user information
 - Data Collected:
   - Anonymous usage statistics

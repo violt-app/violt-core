@@ -19,7 +19,9 @@ from miio.exceptions import DeviceException
 from miio.integrations.vacuum.roborock import (
     vacuum,
 )  # Import specific vacuum models if needed
-
+from bleak import BleakClient
+import struct
+from ..bleak.integration import BleakIntegration
 from ..base import Device, DeviceIntegration, DeviceIntegrationError, DeviceState
 from ..capabilities import (
     OnOffCapability,
@@ -278,9 +280,48 @@ class XiaomiVacuumCapability(VacuumCapability):
             return False
 
 
+# --- Xiaomi BLE Device Class ---
+# Xiaomi BLE Service UUIDs
+XIAOMI_SERVICE_UUID = "fe95"
+XIAOMI_CHARACTERISTIC_UUID = "00001a00-0000-1000-8000-00805f9b34fb"
+
+
+class XiaomiBLEIntegration(BleakIntegration):
+    def __init__(self):
+        super().__init__()
+        self._supported_devices = {
+            "LYWSD03MMC": {"name": "Xiaomi Temperature/Humidity Sensor"},
+            "MHO-C401": {"name": "Xiaomi Hygrometer"},
+            "MHO-C303": {"name": "Xiaomi Smart Clock"},
+        }
+
+    async def read_sensor_data(self, device_address: str) -> Dict[str, Any]:
+        """Read data from Xiaomi BLE sensor"""
+        if device_address not in self._connected_devices:
+            await self.connect_to_device(device_address)
+
+        client = self._connected_devices[device_address]
+        try:
+            # Read characteristic data
+            raw_data = await client.read_gatt_char(XIAOMI_CHARACTERISTIC_UUID)
+
+            # Parse Xiaomi-specific data format
+            return self._parse_xiaomi_data(raw_data)
+        except Exception as e:
+            raise Exception(f"Failed to read Xiaomi sensor data: {str(e)}")
+
+    def _parse_xiaomi_data(self, raw_data: bytes) -> Dict[str, Any]:
+        """Parse Xiaomi's proprietary BLE data format"""
+        # Example parsing for temperature/humidity sensors
+        if len(raw_data) >= 6:
+            temp = struct.unpack("<h", raw_data[0:2])[0] / 10.0
+            humidity = struct.unpack("<H", raw_data[2:4])[0] / 10.0
+            battery = raw_data[4] & 0x7F
+            return {"temperature": temp, "humidity": humidity, "battery": battery}
+        return {}
+
+
 # --- Xiaomi Device Class ---
-
-
 class XiaomiDevice(Device):
     """Implementation of Device for Xiaomi devices using python-miio."""
 
@@ -563,8 +604,6 @@ class XiaomiDevice(Device):
 
 
 # --- Xiaomi Integration Class ---
-
-
 class XiaomiIntegration(DeviceIntegration):
     """Implementation of DeviceIntegration for Xiaomi devices."""
 
@@ -815,9 +854,13 @@ class XiaomiIntegration(DeviceIntegration):
 
 # --- Register with Registry ---
 from ..registry import registry
+
 registry.register_integration_class(XiaomiIntegration)
+registry.register_integration_class(XiaomiBLEIntegration)
 # or by having the registry scan a specific directory.
 
 # Example registration (if registry is imported here):
-from ..registry import registry
-registry.register_integration_class(XiaomiIntegration)
+# from ..registry import registry
+
+# registry.register_integration_class(XiaomiIntegration)
+# registry.register_integration_class(XiaomiBLEIntegration)

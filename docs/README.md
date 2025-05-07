@@ -57,17 +57,20 @@ Violt Core Lite follows a modular architecture with clear separation of concerns
 ### Using Docker Compose
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/violt/violt-core-lite.git
    cd violt-core-lite
    ```
 
 2. Create environment files:
+
    ```bash
    cp backend/config/.env.example backend/config/.env
    ```
 
 3. Start the application:
+
    ```bash
    docker-compose up -d
    ```
@@ -79,30 +82,35 @@ Violt Core Lite follows a modular architecture with clear separation of concerns
 #### Backend
 
 1. Install Python 3.11+:
+
    ```bash
    sudo apt update
    sudo apt install python3.11 python3.11-venv python3-pip
    ```
 
 2. Create and activate a virtual environment:
+
    ```bash
    python3.11 -m venv venv
    source venv/bin/activate
    ```
 
 3. Install dependencies:
+
    ```bash
    cd backend
    pip install -r requirements.txt
    ```
 
 4. Configure environment:
+
    ```bash
    cp config/.env.example config/.env
    # Edit .env file with your settings
    ```
 
 5. Run the application:
+
    ```bash
    uvicorn src.main:app --host 0.0.0.0 --port 8000
    ```
@@ -110,23 +118,27 @@ Violt Core Lite follows a modular architecture with clear separation of concerns
 #### Frontend
 
 1. Install Node.js 20+:
+
    ```bash
    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
    sudo apt install -y nodejs
    ```
 
 2. Install dependencies:
+
    ```bash
    cd frontend
    npm install
    ```
 
 3. Build the application:
+
    ```bash
    npm run build
    ```
 
 4. Start the frontend:
+
    ```bash
    npm start
    ```
@@ -137,7 +149,7 @@ Violt Core Lite follows a modular architecture with clear separation of concerns
 
 The backend is configured through environment variables in the `.env` file:
 
-```
+```text
 # Server settings
 HOST=0.0.0.0
 PORT=8000
@@ -175,7 +187,7 @@ discovery:
 
 The automation engine is configured through environment variables:
 
-```
+```text
 AUTOMATION_CHECK_INTERVAL=10  # seconds
 AUTOMATION_MAX_HISTORY=100    # events
 ```

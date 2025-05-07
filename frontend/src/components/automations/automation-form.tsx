@@ -9,34 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Automation, Condition, Action } from "@/types/automation-type"; // Import Condition and Action types
+import { Trash2 } from "lucide-react"; // Import an icon for the remove button
 
 interface AutomationFormProps {
-  automation?: {
-    id?: string;
-    name: string;
-    description?: string;
-    enabled: boolean;
-    trigger: {
-      type: string;
-      config: Record<string, any>;
-    };
-    conditions: Array<{
-      type: string;
-      config: Record<string, any>;
-    }>;
-    actions: Array<{
-      type: string;
-      config: Record<string, any>;
-    }>;
-    condition_type: "and" | "or";
-  };
+  automation?: Automation;
   onSubmit: (automation: any) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
 
 export function AutomationForm({ automation, onSubmit, onCancel, isLoading = false }: AutomationFormProps) {
-  const defaultAutomation = {
+  const defaultAutomation: Automation = {
     name: "",
     description: "",
     enabled: true,
@@ -56,11 +40,35 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
         params: {}
       }
     }],
-    condition_type: "and" as const
+    condition_type: "and" as const,
+    id: "",
+    trigger_type: "",
+    created_at: "",
+    updated_at: ""
   };
 
   const [formData, setFormData] = useState(automation || defaultAutomation);
   const [activeTab, setActiveTab] = useState("trigger");
+
+  // Default structures for new items
+  const defaultCondition: Condition = {
+    type: "device_state",
+    config: {
+      device_id: "",
+      property: "power",
+      operator: "==",
+      value: "on"
+    }
+  };
+
+  const defaultAction: Action = {
+    type: "device_command",
+    config: {
+      device_id: "",
+      command: "turn_on",
+      params: {}
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -69,7 +77,7 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
 
   const handleTriggerTypeChange = (value: string) => {
     let config = {};
-    
+
     // Set default config based on trigger type
     switch (value) {
       case "time":
@@ -98,7 +106,7 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
         };
         break;
     }
-    
+
     setFormData((prev) => ({
       ...prev,
       trigger: {
@@ -121,6 +129,40 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
     }));
   };
 
+  // --- Condition Handlers ---
+  const addCondition = () => {
+    setFormData((prev) => ({
+      ...prev,
+      conditions: [...prev.conditions, defaultCondition]
+    }));
+  };
+
+  const removeCondition = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      conditions: prev.conditions.filter((_, i) => i !== index)
+    }));
+  };
+
+  // TODO: Implement handleConditionChange to update specific condition fields
+
+  // --- Action Handlers ---
+  const addAction = () => {
+    setFormData((prev) => ({
+      ...prev,
+      actions: [...prev.actions, defaultAction]
+    }));
+  };
+
+  const removeAction = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      actions: prev.actions.filter((_, i) => i !== index)
+    }));
+  };
+
+  // TODO: Implement handleActionChange to update specific action fields
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
@@ -131,7 +173,7 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
 
   const renderTriggerConfig = () => {
     const { type, config } = formData.trigger;
-    
+
     switch (type) {
       case "time":
         return (
@@ -169,7 +211,7 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
             </div>
           </>
         );
-        
+
       case "sun":
         return (
           <>
@@ -202,7 +244,7 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
             </div>
           </>
         );
-        
+
       case "device_state":
         return (
           <>
@@ -261,7 +303,7 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
             </div>
           </>
         );
-        
+
       case "event":
         return (
           <div className="grid gap-2">
@@ -283,10 +325,36 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
             </Select>
           </div>
         );
-        
+
       default:
         return <p>Select a trigger type</p>;
     }
+  };
+
+  // Placeholder render functions for conditions and actions
+  // TODO: Replace these with actual form elements for editing
+  const renderConditionItem = (condition: Condition, index: number) => {
+    return (
+      <div key={index} className="border rounded-md p-4 mb-4 flex justify-between items-center">
+        <p className="text-sm">Condition {index + 1}: {condition.type}</p>
+        {/* Placeholder for condition config details */}
+        <Button type="button" variant="ghost" size="icon" onClick={() => removeCondition(index)}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  };
+
+  const renderActionItem = (action: Action, index: number) => {
+    return (
+      <div key={index} className="border rounded-md p-4 mb-4 flex justify-between items-center">
+        <p className="text-sm">Action {index + 1}: {action.type}</p>
+        {/* Placeholder for action config details */}
+        <Button type="button" variant="ghost" size="icon" onClick={() => removeAction(index)}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    );
   };
 
   return (
@@ -314,7 +382,7 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
                   required
                 />
               </div>
-              
+
               <div className="grid gap-2">
                 <Label htmlFor="description">Description (Optional)</Label>
                 <Input
@@ -326,14 +394,14 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
                 />
               </div>
             </div>
-            
+
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="trigger">Trigger</TabsTrigger>
                 <TabsTrigger value="conditions">Conditions</TabsTrigger>
                 <TabsTrigger value="actions">Actions</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="trigger" className="pt-4">
                 <div className="grid gap-4">
                   <div className="grid gap-2">
@@ -353,18 +421,18 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   {renderTriggerConfig()}
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="conditions" className="pt-4">
                 <div className="grid gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="condition_type">Condition Type</Label>
                     <Select
                       value={formData.condition_type}
-                      onValueChange={(value: "and" | "or") => 
+                      onValueChange={(value: "and" | "or") =>
                         setFormData((prev) => ({ ...prev, condition_type: value }))
                       }
                     >
@@ -377,35 +445,38 @@ export function AutomationForm({ automation, onSubmit, onCancel, isLoading = fal
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   {formData.conditions.length === 0 ? (
                     <div className="border rounded-md p-6 flex flex-col items-center justify-center">
                       <p className="text-muted-foreground mb-4">No conditions added yet</p>
-                      <Button type="button" variant="outline">
+                      <Button type="button" variant="outline" onClick={addCondition}>
                         Add Condition
                       </Button>
                     </div>
                   ) : (
-                    <div className="border rounded-md p-4">
-                      <p>Conditions will be displayed here</p>
+                    <div className="space-y-4">
+                      {formData.conditions.map(renderConditionItem)}
+                      <Button type="button" variant="outline" onClick={addCondition} className="w-full">
+                        Add Another Condition
+                      </Button>
                     </div>
                   )}
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="actions" className="pt-4">
                 <div className="grid gap-4">
                   {formData.actions.length === 0 ? (
                     <div className="border rounded-md p-6 flex flex-col items-center justify-center">
                       <p className="text-muted-foreground mb-4">No actions added yet</p>
-                      <Button type="button" variant="outline">
+                      <Button type="button" variant="outline" onClick={addAction}>
                         Add Action
                       </Button>
                     </div>
                   ) : (
-                    <div className="border rounded-md p-4">
-                      <p>Actions will be displayed here</p>
-                      <Button type="button" variant="outline" className="mt-4">
+                    <div className="space-y-4">
+                      {formData.actions.map(renderActionItem)}
+                      <Button type="button" variant="outline" onClick={addAction} className="w-full">
                         Add Another Action
                       </Button>
                     </div>

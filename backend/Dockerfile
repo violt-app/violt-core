@@ -13,6 +13,9 @@ RUN if [ "$(uname -s)" = "Linux" ]; then \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 
+# Install specific version of bcrypt to avoid warnings
+RUN pip install bcrypt==4.1.3
+
 # Copy requirements first for better caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

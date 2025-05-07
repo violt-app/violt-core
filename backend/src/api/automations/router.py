@@ -1,7 +1,7 @@
 # backend/src/api/automations/router.py
 
 """
-Violt Core Lite - API Router for Automations
+Violt Core - API Router for Automations
 
 This module handles automation API endpoints.
 """
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# Helper function (consider moving to a crud utility module)
+# Helper function (TODO: consider moving to a crud utility module)
 async def get_automation_by_id(
     db: AsyncSession, automation_id: str, user_id: str
 ) -> Automation:
@@ -143,16 +143,16 @@ async def create_automation(
     # Create new automation model instance
     new_automation_db = Automation(
         id=automation_id,
-        user_id=current_user.id,
         name=automation_data.name,
-        description=automation_data.description,
-        enabled=automation_data.enabled,
         trigger_type=automation_data.trigger_type,
         trigger_config=automation_data.trigger_config,
         condition_type=automation_data.condition_type,
         conditions=automation_data.conditions,
-        action_type=automation_data.action_type,  # Note: action_type might be redundant if actions list exists
         actions=automation_data.actions,
+        enabled=automation_data.enabled,
+        user_id=current_user.id,
+        description=automation_data.description,
+        action_type=automation_data.action_type,  # Note: action_type might be redundant if actions list exists
         execution_count=0,
         last_modified=datetime.now(datetime.timezone.utc),  # Set initial last_modified
         created_at=datetime.now(datetime.timezone.utc),  # Explicitly set created_at
@@ -172,6 +172,12 @@ async def create_automation(
         "conditions": automation_data.conditions,
         "actions": automation_data.actions,
         "enabled": automation_data.enabled,
+        "user_id": current_user.id,
+        "description": automation_data.description,
+        "action_type": automation_data.action_type,
+        "execution_count": 0,
+        "last_modified": new_automation_db.last_modified,
+        "created_at": new_automation_db.created_at,
     }
     rule = await create_rule_from_config(rule_config)
     if not rule:
@@ -286,16 +292,21 @@ async def update_automation(
     # If engine needs update, create the new rule configuration
     if engine_update_needed:
         rule_config = {
-            "id": automation_db.id,
-            "name": automation_db.name,
+            "id": automation_id,
+            "name": automation_data.name,
             "trigger": {
-                "type": automation_db.trigger_type,
-                "config": automation_db.trigger_config,
+                "type": automation_data.trigger_type,
+                "config": automation_data.trigger_config,
             },
-            "condition_type": automation_db.condition_type,
-            "conditions": automation_db.conditions,
-            "actions": automation_db.actions,
-            "enabled": automation_db.enabled,
+            "condition_type": automation_data.condition_type,
+            "conditions": automation_data.conditions,
+            "actions": automation_data.actions,
+            "enabled": automation_data.enabled,
+            "user_id": current_user.id,
+            "description": automation_data.description,
+            "action_type": automation_data.action_type,
+            "execution_count": 0,
+            "last_modified": automation_db.last_modified,
         }
         new_rule = await create_rule_from_config(rule_config)
         if not new_rule:
@@ -428,7 +439,7 @@ async def enable_automation(
         return automation_db  # Already enabled
 
     automation_db.enabled = True
-    automation_db.last_modified = datetime.utcnow()
+    automation_db.last_modified = datetime.now(datetime.timezone.utc)
 
     # Enable in engine
     engine_enable_success = await automation_engine.enable_rule(automation_id)
@@ -437,8 +448,8 @@ async def enable_automation(
         logger.warning(
             f"Rule {automation_id} not found in engine to enable, attempting to add."
         )
-        rule_config = {  # Recreate config from DB model
-            "id": automation_db.id,
+        rule_config = {
+            "id": automation_id,
             "name": automation_db.name,
             "trigger": {
                 "type": automation_db.trigger_type,
@@ -448,6 +459,10 @@ async def enable_automation(
             "conditions": automation_db.conditions,
             "actions": automation_db.actions,
             "enabled": True,
+            "user_id": current_user.id,
+            "description": automation_db.description,
+            "action_type": automation_db.action_type,
+            "last_modified": automation_db.last_modified,
         }
         rule = await create_rule_from_config(rule_config)
         if rule:
@@ -621,8 +636,8 @@ async def test_automation(
     if not rule:
         # Try loading it if not currently in engine (e.g., if disabled)
         rule_config = {
-            "id": automation_db.id,
-            "name": automation_db.name,  # ... (rest of config) ...
+            "id": automation_id,
+            "name": automation_db.name,
             "trigger": {
                 "type": automation_db.trigger_type,
                 "config": automation_db.trigger_config,
@@ -630,7 +645,11 @@ async def test_automation(
             "condition_type": automation_db.condition_type,
             "conditions": automation_db.conditions,
             "actions": automation_db.actions,
-            "enabled": automation_db.enabled,
+            "enabled": True,
+            "user_id": current_user.id,
+            "description": automation_db.description,
+            "action_type": automation_db.action_type,
+            "last_modified": automation_db.last_modified,
         }
         rule = await create_rule_from_config(rule_config)
         if not rule:
