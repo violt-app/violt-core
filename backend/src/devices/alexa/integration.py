@@ -956,6 +956,9 @@ class AlexaIntegration(DeviceIntegration):
 
 
 # --- Register with Registry ---
-from ..registry import registry
+# from ..registry import registry
 
-registry.register_integration_class(AlexaIntegration)
+# registry.register_integration_class(AlexaIntegration)
+
+__all__ = ["AlexaIntegration"]
+

@@ -24,8 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import os
 import logging
-import importlib
-import asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

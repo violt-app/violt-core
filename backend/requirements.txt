@@ -37,6 +37,9 @@ pyyaml>=6.0.1
 python-miio>=0.5.12,<0.6
 # For BLE integration
 bleak>=0.21,<1.0
+# For Zigbee integration
+zigpy>=0.60.0
+pyserial>=3.5
 
 # Testing
 pytest>=7.4.2

@@ -66,6 +66,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log("Received WebSocket message:", data);
         setLastMessage(data);
       } catch (error) {
         console.error("Error parsing WebSocket message:", error);
@@ -96,7 +97,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     };
 
     setSocket(ws);
-  }, [socket, isConnected, reconnectAttempts]);
+  }, [socket, isConnected, reconnectAttempts, setError]);
 
   const disconnect = useCallback(() => {
     if (socket) {
@@ -134,6 +135,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const sendMessage = useCallback((message: any) => {
     if (socket && isConnected) {
       socket.send(JSON.stringify(message));
+      console.log("Sent message:", message);
     } else {
       console.error("Cannot send message: WebSocket not connected");
     }

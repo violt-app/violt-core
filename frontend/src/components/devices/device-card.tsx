@@ -56,6 +56,9 @@ export function DeviceCard({ device, onToggle, onEdit, onDelete, onConnect, onDi
   // Sync statusState to server-driven prop; clear connecting flag and errors appropriately
   useEffect(() => {
     setStatusState(device.status);
+
+    console.log("Device status changed:", device.status);
+    
     // if not in connecting, clear local connecting flag
     if (device.status !== 'connecting') {
       setIsConnecting(false);

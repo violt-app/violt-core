@@ -90,3 +90,5 @@ data/
 uploads/
 package-lock.json
 frontend/package-lock.json
+frontend/env.d.ts
+frontend/package-lock.json

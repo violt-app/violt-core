@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { DeviceInput } from "@/types/device-input-type";
-import { DeviceResponse } from "@/types/device-response-type";
-import { Device } from "@/types/device-type";
-import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useMemo, useCallback } from "react";
 import { useError } from "./error";
+import { DeviceResponse } from "../types/device-response-type";
+import { DeviceInput } from "../types/device-input-type";
+import { Device } from "../types/device-type";
 
 interface DeviceContextType {
   devices: DeviceResponse[];
@@ -19,7 +19,16 @@ interface DeviceContextType {
   executeDeviceCommand: (id: string, command: string, params?: Record<string, any>) => Promise<void>;
   discoverDevices: () => Promise<string[]>;
   connectDevice: (deviceId: string) => Promise<any>;
+  discoverBLEDevices: () => Promise<string[]>;
+  addBLEDevice: (deviceInfo: any) => Promise<any>;
+  addHub: (hubInfo: any) => Promise<any>;
+  addZigbeeDevice: (deviceInfo: any) => Promise<any>;
+  removeZigbeeDevice: (deviceId: string) => Promise<any>;
+  refreshZigbeeDevice: (deviceId: string) => Promise<any>;
+  commandZigbeeDevice: (deviceId: string, command: string, params?: any) => Promise<any>;
   // Add any other methods you need
+  fetchDeviceTypes: () => Promise<string[]>;
+  fetchManufacturers: () => Promise<string[]>;
 }
 
 const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
@@ -32,6 +41,70 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
   const [devices, setDevices] = useState<DeviceResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { setError, clearError } = useError();
+
+  // Fetch device types
+  const fetchDeviceTypes = useCallback(async (): Promise<string[]> => {
+    setIsLoading(true);
+    clearError();
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setError("Authentication required");
+        throw new Error("Authentication required");
+      }
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/devices/types`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch device types");
+      }
+      const types = await response.json();
+      return types;
+    } catch (error) {
+      console.error("Error fetching device types:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [clearError, setError]);
+
+  // Fetch manufacturers
+  const fetchManufacturers = useCallback(async (): Promise<string[]> => {
+    setIsLoading(true);
+    clearError();
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setError("Authentication required");
+        throw new Error("Authentication required");
+      }
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/devices/manufacturers`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch manufacturers");
+      }
+      const manufacturers = await response.json();
+      return manufacturers;
+    } catch (error) {
+      console.error("Error fetching manufacturers:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [clearError, setError]);
 
   const fetchDevices = useCallback(async () => {
     setIsLoading(true);
@@ -64,6 +137,8 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
         setError(responseData.detail);
         throw new Error("Failed to fetch devices");
       }
+
+      console.log("Fetched devices:", responseData);
 
       setDevices(responseData);
     } catch (error) {
@@ -344,13 +419,263 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
     }
   }, [clearError, setError, fetchDevices]);
 
-  useEffect(() => {
-    // Fetch devices on initial load if user is authenticated
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      fetchDevices();
+  const discoverBLEDevices = useCallback(async (): Promise<string[]> => {
+    setIsLoading(true);
+    clearError();
+
+    try {
+      const token = localStorage.getItem("authToken");
+
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/devices/ble/discover`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const devices = data.discovered_devices ?? [];
+      return devices.map((device: any) => device.name);
+    } catch (error) {
+      console.error("Error scanning for BLE devices:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-  }, [fetchDevices]);
+  }, [setError, clearError]);
+
+  const addBLEDevice = useCallback(async (deviceInfo: any): Promise<any> => {
+    setIsLoading(true);
+    clearError();
+
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setError("Authentication required");
+        throw new Error("Authentication required");
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/devices/ble/add`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(deviceInfo),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to add BLE device");
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error adding BLE device:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setError, clearError]);
+
+  const addHub = useCallback(async (hubInfo: any): Promise<any> => {
+    setIsLoading(true);
+    clearError();
+
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setError("Authentication required");
+        throw new Error("Authentication required");
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/devices/hub/add`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(hubInfo),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to add Hub");
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error adding Hub:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setError, clearError]);
+
+  const addZigbeeDevice = useCallback(async (deviceInfo: any): Promise<any> => {
+    setIsLoading(true);
+    clearError();
+
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setError("Authentication required");
+        throw new Error("Authentication required");
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/devices/zigbee/add`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(deviceInfo),
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Failed to add Zigbee device");
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error adding Zigbee device:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setError, clearError]);
+
+  const removeZigbeeDevice = useCallback(async (deviceId: string): Promise<any> => {
+    setIsLoading(true);
+    clearError();
+
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setError("Authentication required");
+        throw new Error("Authentication required");
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/devices/zigbee/remove`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ device_id: deviceId }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Failed to remove Zigbee device");
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error removing Zigbee device:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setError, clearError]);
+
+  const refreshZigbeeDevice = useCallback(async (deviceId: string): Promise<any> => {
+    setIsLoading(true);
+    clearError();
+
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setError("Authentication required");
+        throw new Error("Authentication required");
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/devices/zigbee/refresh`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ device_id: deviceId }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Failed to refresh Zigbee device");
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error refreshing Zigbee device:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setError, clearError]);
+
+  const commandZigbeeDevice = useCallback(async (deviceId: string, command: string, params: any = {}): Promise<any> => {
+    setIsLoading(true);
+    clearError();
+
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setError("Authentication required");
+        throw new Error("Authentication required");
+      }
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/devices/zigbee/command`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ device_id: deviceId, command, params }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Failed to execute Zigbee device command");
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error executing Zigbee device command:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+
+
+  }, [setError, clearError]);
 
   const contextValue = useMemo(() => ({
     devices,
@@ -364,6 +689,15 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
     executeDeviceCommand,
     discoverDevices,
     connectDevice,
+    discoverBLEDevices,
+    addBLEDevice,
+    addHub,
+    addZigbeeDevice,
+    removeZigbeeDevice,
+    refreshZigbeeDevice,
+    commandZigbeeDevice,
+    fetchDeviceTypes,
+    fetchManufacturers,
   }), [devices,
     isLoading,
     fetchDevices,
@@ -374,7 +708,16 @@ export function DeviceProvider({ children }: DeviceProviderProps) {
     toggleDevicePower,
     executeDeviceCommand,
     discoverDevices,
-    connectDevice]);
+    connectDevice,
+    discoverBLEDevices,
+    addBLEDevice,
+    addHub,
+    addZigbeeDevice,
+    removeZigbeeDevice,
+    refreshZigbeeDevice,
+    commandZigbeeDevice,
+    fetchDeviceTypes,
+    fetchManufacturers]);
 
   return (
     <DeviceContext.Provider value={contextValue}>

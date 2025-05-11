@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 'use client';
 
 import { useEffect, useState } from "react";
@@ -40,8 +39,6 @@ interface DeviceFormProps {
   readonly isLoading?: boolean;
 }
 
-// Added a field for the config dictionary to align with the backend schema.
-
 export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: DeviceFormProps) {
   const [formData, setFormData] = useState({
     name: device?.name ?? "",
@@ -57,6 +54,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
     },
     config: device?.config ?? {},
   });
+  console.log("DeviceForm initial state:", formData.config);
   const { errorMessage, displayError, clearError } = useError();
   const [activeTab, setActiveTab] = useState("manual");
   const [isScanning, setIsScanning] = useState(false);
@@ -100,7 +98,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
   };
 
   const ipAddressPlaceholder = "192.168.1.100";
-  
+
   return (
     <form onSubmit={handleSubmit}>
       <Card>

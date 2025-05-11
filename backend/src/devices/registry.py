@@ -218,6 +218,9 @@ def load_integration_modules():
 
 # Create global registry instance
 registry = IntegrationRegistry()
+from .bleak import BleakIntegration, XiaomiBLEIntegration
+registry.register_integration_class(BleakIntegration)
+registry.register_integration_class(XiaomiBLEIntegration)
 integration_registry = registry
 
 logger.info("Calling load_integration_modules() 2")
