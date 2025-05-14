@@ -1,24 +1,68 @@
 # Core dependencies
-fastapi>=0.104.0,<0.112
-uvicorn[standard]>=0.23.2,<0.30
-python-dotenv>=1.0,<1.1
+# FastAPI
+fastapi>=0.104.0
+
+# Uvicorn
+uvicorn>=0.15.0
+uvicorn[standard]>=0.23.2
+
+# Alembic
+alembic>=1.12.0
+alembic[asyncio]>=1.12.0
+
+# Security
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6
+
+# Pydantic
 pydantic>=2.4.2
 pydantic-settings>=2.0.3
+
+# AIOHTTP
+aiohttp>=3.8.0
+
+# Asyncio
+asyncio>=3.4.3
+
+# Python-dotenv
+python-dotenv>=1.0
+
+# PSUTIL
+psutil>=6.0.0
+
+# Astral
+astral>=2.3.1
+
+# SQLAlchemy
 sqlalchemy>=2.0.22,<2.1
 sqlalchemy[asyncio]>=2.0.22
 sqlalchemy[future]>=2.0.22
-alembic>=1.12.0
-alembic[asyncio]>=1.12.0  # Added asyncio support
 aiosqlite>=0.19.0
-asyncio>=3.4.3
-psutil>=5.9.5
-astral>=2.3.1
+
+# Template support
+Jinja2>=3.0.0
+
+# State management and automation
+python-dateutil>=2.8.2
+pytz>=2021.3
+
+# Testing
+pytest>=7.4.2
+pytest-asyncio>=0.21.1
+pytest-cov>=4.1.0
+pytest>=7.0,<9.0
+pytest-asyncio>=0.20,<0.24
+
+# Development
+black>=21.9b0
+isort>=5.9.3
+flake8>=3.9.2
+mypy>=0.910
 
 # Authentication and security
 python-jose[cryptography]>=3.3.0,<3.4.0
-passlib[bcrypt]>=1.7.4,<1.8
 bcrypt==4.1.3
-python-multipart>=0.0.6
 
 # WebSockets and real-time
 websockets>=11.0.3,<13.0
@@ -31,7 +75,6 @@ motor>=3.3.1
 pymongo>=4.5.0
 
 # Device integration
-aiohttp>=3.8.5
 pyyaml>=6.0.1
 # For Xiaomi integration (example, might need specific local protocol libs)
 python-miio>=0.5.12,<0.6
@@ -42,10 +85,7 @@ zigpy>=0.60.0
 pyserial>=3.5
 
 # Testing
-pytest>=7.4.2
-pytest-asyncio>=0.21.1
 httpx>=0.25.0
-pytest-cov>=4.1.0
 
 # Utilities
 loguru>=0.7.2
@@ -61,7 +101,5 @@ pymongo>=4.0,<5.0
 pywin32>=306; sys_platform == 'win32'
 
 # Testing
-pytest>=7.0,<9.0
-pytest-asyncio>=0.20,<0.24
 httpx>=0.24,<0.28 # For async testing client
 respx>=0.20,<0.22 # For mocking HTTP requests
