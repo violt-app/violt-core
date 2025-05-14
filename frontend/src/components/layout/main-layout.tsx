@@ -1,6 +1,6 @@
 import { ReactNode, SVGProps, useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
-import { SystemStats, SystemStatus, useApi } from "@/lib/api";
+import { cn } from "@/services/utils";
+import { SystemStats, SystemStatus, useApi } from "@/services/api";
 
 interface MainLayoutProps {
   children: ReactNode;

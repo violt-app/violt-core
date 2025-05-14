@@ -1,11 +1,11 @@
 # backend/src/api/devices/router.py
 
 """
-Violt Core Lite - API Router for Devices
+Violt Core - API Router for Devices
 
 This module handles device API endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import delete as sql_delete
@@ -17,6 +17,7 @@ import asyncio
 import re
 
 from ...core.schemas import (
+    DeviceCommand,
     DeviceCreate,
     DeviceUpdate,
     DeviceResponse,
@@ -32,6 +33,9 @@ from ...database.models import Device, User, Event
 # Placeholder for device integration registry and control functions
 # These would be properly imported from device/integration modules in a full implementation
 from ...devices.registry import registry as device_registry
+from ...devices.xiaomi.integration import XiaomiIntegration
+from ...devices.bleak.xiaomi import XiaomiBLEIntegration
+# from ...devices.bleak.integration import BleakIntegration  # Import if needed for generic BLE
 from ...devices.base import Device as IntegrationDevice, DeviceIntegrationError
 from ...core.websocket import manager as websocket_manager
 
@@ -41,7 +45,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# Helper function (consider moving to a crud utility module)
+# Helper function (TODO: consider moving to a crud utility module)
 async def get_device_by_id(db: AsyncSession, device_id: str, user_id: str) -> Device:
     """Get a device by ID and verify ownership."""
     result = await db.execute(
@@ -101,6 +105,13 @@ async def list_devices(
 
     result = await db.execute(query.order_by(Device.name))  # Order by name
     devices = result.scalars().all()
+
+    # Normalize supported_features for all devices before returning
+    for device in devices:
+        if device.properties and "supported_features" in device.properties:
+            sf = device.properties["supported_features"]
+            if not isinstance(sf, list):
+                device.properties["supported_features"] = []
 
     return devices
 
@@ -214,14 +225,15 @@ async def create_device(
                 ).model_dump()
 
                 # Update device properties with capabilities
+                sf = integration_device.properties.get("supported_features", [])
+                if not isinstance(sf, list):
+                    sf = []
                 new_device_db.properties = DeviceProperties(
                     capabilities=[
                         DeviceCapability(cap)
                         for cap in integration_device.properties.get("capabilities", [])
                     ],
-                    supported_features=integration_device.properties.get(
-                        "supported_features", {}
-                    ),
+                    supported_features=list(sf)
                 ).model_dump()
 
                 await db.commit()
@@ -355,14 +367,18 @@ async def connect_device(
             ).model_dump()
 
             # Update device properties with capabilities
+            raw_supported_features = integration_device.properties.get("supported_features", [])
+            if not isinstance(raw_supported_features, list):
+                supported_features = []
+            else:
+                supported_features = list(raw_supported_features)
+
             device.properties = DeviceProperties(
                 capabilities=[
                     DeviceCapability(cap)
                     for cap in integration_device.properties.get("capabilities", [])
                 ],
-                supported_features=integration_device.properties.get(
-                    "supported_features", {}
-                ),
+                supported_features=supported_features
             ).model_dump()
 
             await db.commit()
@@ -494,6 +510,11 @@ async def update_device(
         )
 
         # Send WebSocket update
+        # Normalize supported_features before serializing
+        if device_db.properties and "supported_features" in device_db.properties:
+            sf = device_db.properties["supported_features"]
+            if not isinstance(sf, list):
+                device_db.properties["supported_features"] = []
         await websocket_manager.send_personal_message(
             {
                 "type": "device_updated",
@@ -506,6 +527,11 @@ async def update_device(
     else:
         logger.info(f"No changes detected for device update: {device_id}")
 
+    # Normalize supported_features before returning
+    if device_db.properties and "supported_features" in device_db.properties:
+        sf = device_db.properties["supported_features"]
+        if not isinstance(sf, list):
+            device_db.properties["supported_features"] = []
     return device_db
 
 
@@ -526,8 +552,11 @@ async def delete_device(
         try:
             removed_from_integration = await integration.remove_device(device_id)
             if not removed_from_integration:
+                # This may happen if the device was never connected, setup failed, or the integration state is out of sync.
                 logger.warning(
-                    f"Could not remove device {device_id} from integration {integration_type}, proceeding with DB deletion."
+                    f"Device {device_id} not found in integration {integration_type} during removal. "
+                    "This may happen if the device was never connected, setup failed, or the integration state is out of sync. "
+                    "Proceeding with DB deletion."
                 )
         except Exception as e:
             logger.error(
@@ -566,7 +595,6 @@ async def delete_device(
 
     logger.info(f"Device deleted: {device_id}")
     # No return needed for 204
-
 
 @router.get("/{device_id}/state", response_model=DeviceState)
 async def get_device_state(
@@ -640,6 +668,11 @@ async def update_device_state(
     )
 
     # Send WebSocket update
+    # Normalize supported_features before serializing
+    if device_db.properties and "supported_features" in device_db.properties:
+        sf = device_db.properties["supported_features"]
+        if not isinstance(sf, list):
+            device_db.properties["supported_features"] = []
     await websocket_manager.send_personal_message(
         {
             "type": "device_state_changed",
@@ -657,17 +690,15 @@ async def update_device_state(
 @router.post("/{device_id}/command", response_model=Dict[str, Any])
 async def execute_device_command(
     device_id: str,
-    command_data: Dict[str, Any] = Body(
-        ...,
-        example={"command": "turn_on", "params": {"brightness": 80}},
-    ),
+    command_data: DeviceCommand,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
     """Execute a command on a device via its integration."""
     device_db = await get_device_by_id(db, device_id, current_user.id)
     command = command_data.get("command")
-    params = command_data.get("params", {})
+    payload = command_data.get("payload", {})
 
     if not command:
         raise HTTPException(
@@ -697,7 +728,7 @@ async def execute_device_command(
         device_db.status = DeviceStatus.CONNECTING
         await db.commit()
 
-        success = await integration_device.execute_command(command, params)
+        success = await integration_device.execute_command(command, payload)
         if success:
             # Get updated state from device
             new_state = await integration_device.get_state()
@@ -729,12 +760,26 @@ async def execute_device_command(
                 data={
                     "device_id": device_id,
                     "command": command,
-                    "params": params,
+                    "payload": payload,
                     "success": True,
                     "new_state": device_db.state,
                 },
                 device_id=device_id,
             )
+
+            # Optionally record telemetry data if needed
+            telemetry_service = request.app.state.telemetry_service
+            if telemetry_service:
+                await telemetry_service.record_event(
+                    event_type="device_command",
+                    params={
+                        "device_id": device_id,
+                        "integration": device_db.integration_type,
+                        "command": command,
+                        "payload": payload,
+                    },
+                    user_id=current_user.id,
+                )
 
             # Send WebSocket update
             await websocket_manager.send_personal_message(
@@ -956,37 +1001,108 @@ async def get_device_types():
     """Get list of all unique device types across registered integrations."""
     all_types = set()
     for integration in device_registry.get_integrations():
-        all_types.update(integration.supported_device_types)
+        if hasattr(integration, "supported_device_types"):
+            all_types.update(getattr(integration, "supported_device_types", []))
     return sorted(list(all_types))
 
 
 @router.get("/manufacturers", response_model=List[str])
 async def get_manufacturers():
-    """Get list of potential device manufacturers (could be hardcoded or from integrations)."""
-    # This could be dynamic based on discovered devices or a predefined list
+    """Get list of potential device manufacturers (from integrations and DB)."""
     manufacturers = set()
-    # Example: Add from existing devices in DB
+    # Add known manufacturers from integrations
+    for integration in device_registry.get_integrations():
+        if hasattr(integration, "known_manufacturers"):
+            manufacturers.update(getattr(integration, "known_manufacturers", []))
+    # Add from existing devices in DB
     db = next(get_db())  # Sync access - not ideal
     result = await db.execute(select(Device.manufacturer).distinct())
     manufacturers.update(r[0] for r in result.fetchall() if r[0])
-
-    # Add known manufacturers from integrations
-    # for integration in device_registry.get_integrations():
-    #    # Assuming integrations might have a known_manufacturers property
-    #    manufacturers.update(getattr(integration, 'known_manufacturers', []))
-
-    # Add a common set
-    manufacturers.update(
-        [
-            "Xiaomi",
-            "Generic",
-            "Philips Hue",
-            "IKEA",
-            "TP-Link",
-            "Tuya",
-            "Nest",
-            "Ecobee",
-        ]
-    )
-
     return sorted(list(manufacturers))
+
+
+# BLE and Hub endpoints
+@router.post("/ble/discover", response_model=List[Dict[str, Any]])
+async def discover_ble_devices(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Scan for BLE devices (Xiaomi, etc)."""
+    integration = XiaomiBLEIntegration()
+    try:
+        devices = await integration.discover_devices()
+        return devices
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"BLE scan failed: {str(e)}")
+
+@router.post("/ble/add", response_model=Dict[str, Any])
+async def add_ble_device(
+    device_info: Dict[str, Any] = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Add a discovered BLE device."""
+    integration = XiaomiBLEIntegration()
+    try:
+        device = await integration.add_device(device_info)
+        return {"status": "success", "device": device}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"BLE add failed: {str(e)}")
+
+@router.post("/hub/add", response_model=Dict[str, Any])
+async def add_hub(
+    hub_info: Dict[str, Any] = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Add a new hub (e.g., Xiaomi Smart Home Hub)."""
+    integration = XiaomiIntegration()
+    try:
+        device = await integration.add_device(hub_info)
+        return {"status": "success", "device": device}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Hub add failed: {str(e)}")
+
+@router.post("/zigbee/remove", response_model=Dict[str, Any])
+async def remove_zigbee_device(
+    device_id: str = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Remove a Zigbee device."""
+    integration = ZigbeeIntegration()
+    try:
+        ok = await integration.remove_device(device_id)
+        return {"status": "success" if ok else "not_found"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Remove failed: {str(e)}")
+
+@router.post("/zigbee/refresh", response_model=Dict[str, Any])
+async def refresh_zigbee_device(
+    device_id: str = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Refresh Zigbee device state."""
+    integration = ZigbeeIntegration()
+    try:
+        ok = await integration.refresh_state(device_id)
+        return {"status": "success" if ok else "not_found"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Refresh failed: {str(e)}")
+
+@router.post("/zigbee/command", response_model=Dict[str, Any])
+async def command_zigbee_device(
+    device_id: str = Body(...),
+    command: str = Body(...),
+    params: Dict[str, Any] = Body(default={}),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Send command to a Zigbee device."""
+    integration = ZigbeeIntegration()
+    try:
+        ok = await integration.execute_command(device_id, command, params)
+        return {"status": "success" if ok else "not_found"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Command failed: {str(e)}")

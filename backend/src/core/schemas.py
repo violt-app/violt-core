@@ -231,28 +231,57 @@ class DeviceState(BaseSchema):
     )
 
 
-class DeviceProperties(BaseSchema):
-    """Schema for device capabilities and properties."""
+class DeviceCommand(BaseSchema):
+    """Schema for device command."""
 
-    capabilities: List[DeviceCapability] = Field(default_factory=list)
-    supported_features: Dict[str, Any] = Field(default_factory=dict)
+    command: str
+    payload: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "capabilities": ["power", "brightness", "color_temp"],
-                "supported_features": {
-                    "brightness_range": [0, 100],
-                    "color_temp_range": [2700, 6500],
-                },
+                "command": "set_state",
+                "payload": {"power": "on", "brightness": 80},
             }
         }
     )
 
 
+class DiscoveredBleDevice(BaseModel):
+    name: Optional[str] = None
+    address: str
+    rssi: int
+    metadata: Optional[Dict[str, Any]] = None
+    details: Optional[Any] = (
+        None  # Can hold the raw Bleak device object if needed temporarily
+    )
+
+
+class DeviceProperties(BaseSchema):
+    """Schema for device capabilities and properties."""
+    capabilities: List[str] = Field(default_factory=list)
+    supported_features: List[str] = Field(default_factory=list)
+    # Optionally, add more fields if frontend expects them
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "capabilities": ["power", "brightness", "color_temp"],
+                "supported_features": ["brightness", "color_temp"],
+            }
+        }
+    )
+
+
+class DeviceConfig(BaseSchema):
+    """Schema for device config, matching frontend fields."""
+    token: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+
 class DeviceInDB(DeviceBase):
     """Schema for device in database."""
-
     id: str
     user_id: str
     status: DeviceStatus = Field(default=DeviceStatus.OFFLINE)
@@ -260,18 +289,25 @@ class DeviceInDB(DeviceBase):
     state: DeviceState = Field(default_factory=DeviceState)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    config: Optional[Dict[str, Any]] = None
+    integration_type: str
+    config: Optional[DeviceConfig] = None
 
 
 class DeviceResponse(DeviceBase):
-    """Schema for device response."""
-
+    """Schema for device response, fully aligned with frontend Device type."""
     id: str
     status: DeviceStatus
     properties: DeviceProperties
     state: DeviceState
-    created_at: datetime
-    last_updated: datetime
+    created_at: Optional[datetime] = None
+    last_updated: Optional[datetime] = None
+    integration_type: str
+    config: Optional[DeviceConfig] = None
+    model: Optional[str] = None
+    location: Optional[str] = None
+    ip_address: Optional[str] = None
+    mac_address: Optional[str] = None
+    user_id: Optional[str] = None  # backend only, not exposed to frontend
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -288,14 +324,18 @@ class DeviceResponse(DeviceBase):
                 "status": "connected",
                 "properties": {
                     "capabilities": ["power", "brightness", "color_temp"],
-                    "supported_features": {
-                        "brightness_range": [0, 100],
-                        "color_temp_range": [2700, 6500],
-                    },
+                    "supported_features": ["brightness", "color_temp"],
                 },
                 "state": {"power": "on", "brightness": 80, "color_temp": 4000},
                 "created_at": "2025-04-17T11:33:03Z",
                 "last_updated": "2025-04-17T11:33:03Z",
+                "config": {
+                    "token": "abcdef1234567890",
+                    "username": "user",
+                    "password": "pass",
+                    "host": "192.168.1.100",
+                    "port": 5432
+                }
             }
         }
     )
@@ -468,6 +508,25 @@ class SystemStats(BaseSchema):
             }
         }
     )
+
+
+# BLE schemas
+class BLEService(BaseSchema):
+    """Schema for BLE service."""
+    uuid: str
+    description: Optional[str] = None
+    primary: bool = True
+
+
+class BLECharacteristic(BaseSchema):
+    """Schema for BLE characteristic."""
+    uuid: str
+    service_uuid: str
+    description: Optional[str] = None
+    properties: List[str] = Field(default_factory=list)
+    readable: bool = False
+    writable: bool = False
+    notifiable: bool = False
 
 
 # Integration schemas

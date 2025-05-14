@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 logger.info("Registry module imported and top-level code executed.")
 
+
 class IntegrationRegistry:
     """Registry for device integrations."""
 
@@ -30,13 +31,19 @@ class IntegrationRegistry:
         self, integration_class: Type[DeviceIntegration]
     ) -> None:
         """Register an integration class."""
-        integration_type = getattr(integration_class, 'integration_type', None)
-        logger.info(f"Attempting to register integration class: {integration_class} (type={integration_type})")
+        integration_type = getattr(integration_class, "integration_type", None)
+        logger.info(
+            f"Attempting to register integration class: {integration_class} (type={integration_type})"
+        )
         if not integration_type:
-            logger.error(f"Integration class {integration_class} missing 'integration_type' attribute!")
+            logger.error(
+                f"Integration class {integration_class} missing 'integration_type' attribute!"
+            )
             return
         self.integration_classes[integration_type] = integration_class
-        logger.info(f"Registered integration class: {integration_type}. Current keys: {list(self.integration_classes.keys())}")
+        logger.info(
+            f"Registered integration class: {integration_type}. Current keys: {list(self.integration_classes.keys())}"
+        )
 
     async def setup_integration(
         self, integration_type: str, config: Dict[str, Any]
@@ -208,8 +215,13 @@ def load_integration_modules():
             except Exception as e:
                 logger.error(f"Unexpected error loading module {item}: {e}")
 
+
 # Create global registry instance
 registry = IntegrationRegistry()
+from .bleak import BleakIntegration, XiaomiBLEIntegration
+registry.register_integration_class(BleakIntegration)
+registry.register_integration_class(XiaomiBLEIntegration)
+integration_registry = registry
 
 logger.info("Calling load_integration_modules() 2")
 

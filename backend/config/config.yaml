@@ -1,0 +1,11 @@
+zigbee:
+  port: COM4
+  pan_id: 0x1A62        # optional custom PAN
+  channel: 15           # optional custom channel
+mqtt:
+  host: localhost
+  port: 1883
+  base_topic: violt
+discovery:
+  zigbee: true
+  mqtt: true

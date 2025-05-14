@@ -14,6 +14,9 @@ services:
       - violt-data:/app/data
       - violt-logs:/app/logs
       - ./backend/integrations:/app/config/integrations
+      - ./backend/config:/app/config
+      - ./backend/logs:/app/logs
+      - ./backend/data:/app/data
     environment:
       - HOST=0.0.0.0
       - PORT=8000

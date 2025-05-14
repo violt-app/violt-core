@@ -31,6 +31,9 @@ from ..database.session import (
 )  # Use the session factory directly for background tasks
 from ..core.config import settings
 from ..core.websocket import manager as websocket_manager  # Import websocket manager
+from ..core.state import state_manager
+from ..core.retry import with_retry
+from .template import template_manager
 
 # Use standard logging
 logger = logging.getLogger(__name__)
@@ -66,6 +69,7 @@ class AutomationEngine:
         self.event_handlers: List[Callable[[Dict[str, Any]], Coroutine]] = (
             []
         )  # Handlers are now async
+        self._state_listener_task: Optional[asyncio.Task] = None
 
     async def start(self):
         """Start the automation engine."""
@@ -87,6 +91,11 @@ class AutomationEngine:
         # Start event processor task for event-based triggers
         self.event_processor_task = asyncio.create_task(
             self._event_processor(), name="AutomationEventProcessor"
+        )
+
+        # Start state change listener
+        self._state_listener_task = asyncio.create_task(
+            self._state_change_listener(), name="StateChangeListener"
         )
 
         logger.info(
@@ -130,6 +139,20 @@ class AutomationEngine:
                     f"Error during event processor cancellation: {e}", exc_info=True
                 )
             self.event_processor_task = None
+
+        # Cancel state change listener task
+        if self._state_listener_task and not self._state_listener_task.done():
+            self._state_listener_task.cancel()
+            try:
+                await self._state_listener_task
+            except asyncio.CancelledError:
+                logger.info("State change listener cancelled.")
+            except Exception as e:
+                logger.error(
+                    f"Error during state change listener cancellation: {e}",
+                    exc_info=True,
+                )
+            self._state_listener_task = None
 
         # Clear rules (optional, depends if state needs to be preserved)
         async with self.lock:
@@ -358,64 +381,18 @@ class AutomationEngine:
         await self.event_queue.put(event_data)
         logger.debug(f"Event added to queue: {event_data.get('type')}")
 
+    @with_retry(max_retries=3, delay=1.0)
     async def _execute_rule(self, rule: AutomationRule, context: Dict[str, Any]):
-        """Helper method to execute a single rule's actions if conditions met."""
+        """Execute a rule with retry logic."""
         try:
-            conditions_met = await rule.evaluate_conditions(context)
+            # Evaluate conditions with template support
+            conditions_met = await self._evaluate_conditions(rule, context)
             if conditions_met:
                 logger.info(
                     f"Conditions met for automation '{rule.name}'. Executing actions..."
                 )
-                action_success = await rule.execute_actions(context)
-
-                # Log trigger event to DB after successful execution
-                try:
-                    async with get_db_session() as db:
-                        # Find the user_id associated with this rule
-                        automation_db = await db.get(Automation, uuid.UUID(rule.id))
-                        user_id = automation_db.user_id if automation_db else None
-
-                        if user_id:
-                            event = Event(
-                                type="automation_triggered",
-                                source="engine",
-                                data={
-                                    "automation_id": rule.id,
-                                    "automation_name": rule.name,
-                                    "success": action_success,
-                                    "context": context.get("event", {}),
-                                },
-                                # Maybe associate event with user? Needs schema change.
-                            )
-                            db.add(event)
-                            # Update execution count and last triggered time in DB
-                            if automation_db:
-                                automation_db.last_triggered = rule.last_triggered
-                                automation_db.execution_count = rule.execution_count
-                                # Commit happens within get_db_session context
-
-                            # Send WebSocket notification
-                            await websocket_manager.send_personal_message(
-                                {
-                                    "type": "automation_triggered",
-                                    "automation_id": rule.id,
-                                    "success": action_success,
-                                },
-                                user_id,
-                                "automations",
-                            )
-
-                        else:
-                            logger.warning(
-                                f"Could not find user_id for automation {rule.id} to log trigger event."
-                            )
-
-                except Exception as db_err:
-                    logger.error(
-                        f"Error logging automation trigger event or updating stats for {rule.name}: {db_err}",
-                        exc_info=True,
-                    )
-
+                action_success = await self._execute_actions(rule, context)
+                await self._log_automation_trigger(rule, context, action_success)
             else:
                 logger.debug(f"Conditions not met for automation '{rule.name}'.")
         except Exception as e:
@@ -423,6 +400,92 @@ class AutomationEngine:
                 f"Error during action execution for rule '{rule.name}': {e}",
                 exc_info=True,
             )
+            raise
+
+    async def _evaluate_conditions(
+        self, rule: AutomationRule, context: Dict[str, Any]
+    ) -> bool:
+        """Evaluate conditions with template support."""
+        if not rule.conditions:
+            return True
+
+        # Process template variables in conditions
+        processed_conditions = []
+        for condition in rule.conditions:
+            if isinstance(condition, dict) and "template" in condition:
+                try:
+                    template_result = template_manager.render_template(
+                        condition["template"], context
+                    )
+                    processed_conditions.append(template_result.lower() == "true")
+                except Exception as e:
+                    logger.error(f"Error processing condition template: {e}")
+                    return False
+            else:
+                processed_conditions.append(condition)
+
+        # Evaluate conditions based on condition type
+        if rule.condition_type == "and":
+            return all(processed_conditions)
+        elif rule.condition_type == "or":
+            return any(processed_conditions)
+        else:
+            logger.error(f"Unknown condition type: {rule.condition_type}")
+            return False
+
+    async def _execute_actions(
+        self, rule: AutomationRule, context: Dict[str, Any]
+    ) -> bool:
+        """Execute actions with template support."""
+        success = True
+        for action in rule.actions:
+            try:
+                if isinstance(action, dict) and "template" in action:
+                    # Process template action
+                    template_result = template_manager.render_template(
+                        action["template"], context
+                    )
+                    # Execute the template result as a service call
+                    await self._execute_service_call(template_result)
+                else:
+                    # Execute regular action
+                    await action.execute(context)
+            except Exception as e:
+                logger.error(f"Error executing action: {e}")
+                success = False
+        return success
+
+    async def _state_change_listener(self):
+        """Listen for state changes and trigger relevant automations."""
+
+        async def state_changed(
+            entity_id: str, old_state: Optional[State], new_state: State
+        ):
+            if not self.running:
+                return
+
+            # Create event data
+            event_data = {
+                "type": "state_changed",
+                "entity_id": entity_id,
+                "old_state": old_state.state if old_state else None,
+                "new_state": new_state.state,
+                "attributes": new_state.attributes,
+                "context": new_state.context,
+            }
+
+            # Add to event queue
+            await self.event_queue.put(event_data)
+
+        # Register state change listener
+        await state_manager.add_listener(state_changed)
+
+        try:
+            while self.running:
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            await state_manager.remove_listener(state_changed)
+            raise
 
     async def _event_processor(self):
         """Process events from the queue (for event-based triggers)."""
@@ -435,7 +498,10 @@ class AutomationEngine:
                     break
 
                 logger.debug(f"Processing event: {event_data.get('type')}")
-                context = {"event": event_data, "timestamp": datetime.now(datetime.timezone.utc)}
+                context = {
+                    "event": event_data,
+                    "timestamp": datetime.now(datetime.timezone.utc),
+                }
 
                 # Get relevant rules (event triggers, enabled)
                 rules_to_check = []

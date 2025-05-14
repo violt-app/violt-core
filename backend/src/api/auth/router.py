@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import text
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from ...core.schemas import UserCreate, UserResponse, Token, LoginRequest
 from ...core.auth import (
     authenticate_user,
@@ -19,6 +19,7 @@ from ...core.auth import (
 )
 from ...database.session import get_db
 from ...database.models import User
+from ...core.config import settings
 
 router = APIRouter()
 
@@ -30,17 +31,21 @@ async def register_user(user_data: UserCreate, db: AsyncSession = Depends(get_db
     """Register a new user."""
     logger = logging.getLogger(__name__)
     logger.info(f"Attempting to register new user with username: {user_data.username}")
-    
+
     # Log the validation requirements
-    logger.debug(f"Validating registration data - Name: {len(user_data.name)} chars, Username: {len(user_data.username)} chars")
-    
+    logger.debug(
+        f"Validating registration data - Name: {len(user_data.name)} chars, Username: {len(user_data.username)} chars"
+    )
+
     # Check if username already exists
     result = await db.execute(
         text("SELECT id FROM users WHERE username = :username"),
         {"username": user_data.username},
     )
     if result.scalar_one_or_none():
-        logger.warning(f"Registration failed: Username '{user_data.username}' is already registered")
+        logger.warning(
+            f"Registration failed: Username '{user_data.username}' is already registered"
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered",
@@ -52,7 +57,9 @@ async def register_user(user_data: UserCreate, db: AsyncSession = Depends(get_db
         {"email": user_data.email},
     )
     if result.scalar_one_or_none():
-        logger.warning(f"Registration failed: Email '{user_data.email}' is already registered")
+        logger.warning(
+            f"Registration failed: Email '{user_data.email}' is already registered"
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
@@ -61,7 +68,9 @@ async def register_user(user_data: UserCreate, db: AsyncSession = Depends(get_db
     if user_data.terms_accepted:
         logger.info(f"User '{user_data.username}' has accepted terms and conditions")
     else:
-        logger.info(f"User '{user_data.username}' has not accepted terms and conditions")
+        logger.info(
+            f"User '{user_data.username}' has not accepted terms and conditions"
+        )
 
     try:
         # Create new user
@@ -77,14 +86,14 @@ async def register_user(user_data: UserCreate, db: AsyncSession = Depends(get_db
         db.add(new_user)
         await db.commit()
         await db.refresh(new_user)
-        
+
         logger.info(f"Successfully registered new user: {user_data.username}")
         return new_user
     except Exception as e:
         logger.error(f"Failed to create user '{user_data.username}': {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create user: {str(e)}"
+            detail=f"Failed to create user: {str(e)}",
         )
 
 
@@ -102,11 +111,11 @@ async def login_for_access_token(
         )
 
     # Update last login time
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     await db.commit()
 
     # Create access token
-    access_token_expires = timedelta(minutes=60)
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username, "id": user.id}, expires_delta=access_token_expires
     )
@@ -126,7 +135,7 @@ async def login_json(login_data: LoginRequest, db: AsyncSession = Depends(get_db
         )
 
     # Update last login time
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     await db.commit()
 
     # Create access token

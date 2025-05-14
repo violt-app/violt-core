@@ -1,0 +1,7 @@
+type: google_home
+# Add Google Home specific configuration here
+# Example:
+# project_id: your-google-project-id
+# client_id: your-client-id.apps.googleusercontent.com
+# client_secret: YOUR_CLIENT_SECRET
+# agent_user_id: user-id-associated-with-device

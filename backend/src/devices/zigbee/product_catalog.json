@@ -1,0 +1,9 @@
+{
+    "WSDCGQ11LM": {
+        "manufacturer": "Aqara",
+        "model": "WSDCGQ11LM",
+        "name": "Aqara Temperature & Humidity Sensor",
+        "type": "sensor",
+        "capabilities": ["temperature", "humidity", "battery"]
+    }
+}

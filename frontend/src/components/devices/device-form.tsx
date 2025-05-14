@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 'use client';
 
 import { useEffect, useState } from "react";
@@ -9,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDevices } from "@/lib/devices";
-import { useError } from "@/lib/error";
+import { useDevices } from "@/services/devices";
+import { useError } from "@/services/error";
+import { SearchIcon } from "../icons/search-icon";
 
 interface DeviceFormProps {
   readonly device?: {
@@ -39,8 +39,6 @@ interface DeviceFormProps {
   readonly isLoading?: boolean;
 }
 
-// Added a field for the config dictionary to align with the backend schema.
-
 export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: DeviceFormProps) {
   const [formData, setFormData] = useState({
     name: device?.name ?? "",
@@ -56,6 +54,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
     },
     config: device?.config ?? {},
   });
+  console.log("DeviceForm initial state:", formData.config);
   const { errorMessage, displayError, clearError } = useError();
   const [activeTab, setActiveTab] = useState("manual");
   const [isScanning, setIsScanning] = useState(false);
@@ -97,6 +96,8 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
       id: device?.id,
     });
   };
+
+  const ipAddressPlaceholder = "192.168.1.100";
 
   return (
     <form onSubmit={handleSubmit}>
@@ -194,7 +195,7 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
                   <Input
                     id="ip_address"
                     name="ip_address"
-                    placeholder="192.168.1.100"
+                    placeholder={ipAddressPlaceholder}
                     value={formData.ip_address}
                     onChange={handleChange}
                   />
@@ -284,23 +285,5 @@ export function DeviceForm({ device, onSubmit, onCancel, isLoading = false }: De
         </CardFooter>
       </Card>
     </form>
-  );
-}
-
-function SearchIcon({ className }: { readonly className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
   );
 }

@@ -1,0 +1,135 @@
+// E:\violt\violt-core\frontend\components\integrations\BLEIntegration.tsx
+import { useState, useEffect } from 'react';
+import { useApi } from '../../hooks/useApi';
+
+interface BLEDevice {
+  name: string;
+  address: string;
+  rssi?: number;
+  metadata?: Record<string, any>;
+}
+
+interface XiaomiSensorData {
+  temperature?: number;
+  humidity?: number;
+  battery?: number;
+  timestamp?: string;
+}
+
+export default function BLEIntegration() {
+  const [devices, setDevices] = useState<BLEDevice[]>([]);
+  const [connectedDevice, setConnectedDevice] = useState<string | null>(null);
+  const [sensorData, setSensorData] = useState<XiaomiSensorData | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const api = useApi();
+
+  const scanDevices = async () => {
+    setIsScanning(true);
+    setError(null);
+    try {
+      const response = await api.get<BLEDevice[]>('/api/integrations/ble/discover');
+      setDevices(response.data);
+    } catch (err) {
+      setError('Failed to scan for BLE devices');
+      console.error('BLE scan failed:', err);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const connectDevice = async (address: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await api.post(`/api/integrations/ble/connect/${address}`);
+      setConnectedDevice(address);
+      startDataPolling(address);
+    } catch (err) {
+      setError('Failed to connect to device');
+      console.error('Connection failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startDataPolling = (address: string) => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await api.get<XiaomiSensorData>(
+          `/api/integrations/xiaomi/ble/${address}/data`
+        );
+        setSensorData(response.data);
+      } catch (err) {
+        console.error('Data fetch failed:', err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  };
+
+  return (
+    <div className="p-4 bg-white rounded-lg shadow">
+      <h2 className="text-xl font-semibold mb-4">BLE Device Integration</h2>
+      
+      {error && (
+        <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <button
+        onClick={scanDevices}
+        disabled={isScanning}
+        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
+      >
+        {isScanning ? 'Scanning...' : 'Scan for BLE Devices'}
+      </button>
+      
+      <div className="mt-4 space-y-2">
+        {devices.map(device => (
+          <div key={device.address} className="flex items-center justify-between p-2 border rounded">
+            <span>
+              {device.name || 'Unknown Device'} ({device.address})
+              {device.rssi && ` - ${device.rssi} dBm`}
+            </span>
+            <button
+              onClick={() => connectDevice(device.address)}
+              disabled={connectedDevice === device.address || isLoading}
+              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300"
+            >
+              {connectedDevice === device.address ? 'Connected' : 'Connect'}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {sensorData && (
+        <div className="mt-6 p-4 bg-gray-50 rounded">
+          <h3 className="text-lg font-medium mb-2">Sensor Data</h3>
+          <div className="grid grid-cols-3 gap-4">
+            {sensorData.temperature && (
+              <div>
+                <span className="text-gray-600">Temperature:</span>
+                <span className="font-medium ml-2">{sensorData.temperature}°C</span>
+              </div>
+            )}
+            {sensorData.humidity && (
+              <div>
+                <span className="text-gray-600">Humidity:</span>
+                <span className="font-medium ml-2">{sensorData.humidity}%</span>
+              </div>
+            )}
+            {sensorData.battery && (
+              <div>
+                <span className="text-gray-600">Battery:</span>
+                <span className="font-medium ml-2">{sensorData.battery}%</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
