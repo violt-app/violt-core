@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState, useEffect } from "react";
@@ -11,46 +10,49 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { useDevices } from "@/services/devices";
 import { Device } from "@/types/device-type";
 import { useError } from "@/services/error";
+import { useWebSocket } from "@/services/websocket";
 
 export default function DevicesPage() {
-    const { devices: fetchedDevices, fetchDevices, addDevice, connectDevice, deleteDevice, updateDevice } = useDevices();
+    // Only use implemented context methods
+    const { fetchDevices, addDevice, updateDevice, deleteDevice, connectDevice, devices } = useDevices();
     const { clearError } = useError();
-    const [devices, setDevices] = useState<Device[]>([]);
+    const { lastMessage } = useWebSocket();
 
-    useEffect(() => {
-        fetchDevices(); // Fetch devices when the page loads
-    }, [fetchDevices]);
-
-    useEffect(() => {
-        setDevices(fetchedDevices.map(device => ({
-            name: device.name || '',
-            type: device.type || '',
-            manufacturer: device.manufacturer || '',
-            integration_type: device.integration_type || '',
-            id: device.id,
-            model: device.model,
-            location: device.location,
-            ip_address: device.ip_address,
-            mac_address: device.mac_address,
-            status: (device.status || "offline") as "connected" | "offline" | "error" | "connecting",
-            state: device.state || {},
-            properties: {
-                capabilities: device.properties?.capabilities || [],
-                supported_features: device.properties?.supported_features || []
-            },
-            created_at: device.created_at,
-            last_updated: device.last_updated,
-            config: device.config
-        })));
-    }, [fetchedDevices]);
+    // Remove local devices state
+    // const [devices, setDevices] = useState<Device[]>([]);
 
     const [isAddingDevice, setIsAddingDevice] = useState(false);
     const [isDeletingDevice, setIsDeletingDevice] = useState(false);
+    const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
     const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+    // Prepare BLE/Hub logic for when backend endpoints are ready
+    // const [isAddingBLEDevice, setIsAddingBLEDevice] = useState(false);
+    // const [isAddingHub, setIsAddingHub] = useState(false);
+
+    useEffect(() => {
+        const token = localStorage.getItem("authToken");
+        if (token) {
+            fetchDevices();
+        }
+    }, [fetchDevices]);
+
+    useEffect(() => {
+
+    }, [lastMessage]);
+
+    // Effect: If deletingDeviceId is set, and that device is no longer in the devices list, clear deleting state
+    useEffect(() => {
+        if (isDeletingDevice && deletingDeviceId) {
+            const stillExists = devices.some(d => d.id === deletingDeviceId);
+            if (!stillExists) {
+                setIsDeletingDevice(false);
+                setDeletingDeviceId(null);
+            }
+        }
+    }, [devices, isDeletingDevice, deletingDeviceId]);
 
     const handleAddDevice = (newDevice: Device) => {
-        addDevice(newDevice).then((addedDevice) => {
-            setDevices((prev) => [...prev, addedDevice]);
+        addDevice(newDevice).then(() => {
             setIsAddingDevice(false);
         });
     };
@@ -59,11 +61,8 @@ export default function DevicesPage() {
         clearError();
         setEditingDevice(updatedDevice);
 
-        // Assuming updateDevice is a function that updates the device and returns a promise
         updateDevice(updatedDevice.id, updatedDevice).then(() => {
-            setDevices((prev) =>
-                prev.map((device) => (device.id === updatedDevice.id ? updatedDevice : device))
-            );
+            // No need to update local state, context will update devices
         }).catch(() => {
             // Handle error if needed
         }).finally(() => {
@@ -73,12 +72,13 @@ export default function DevicesPage() {
 
     const handleDeleteDevice = (id: string) => {
         setIsDeletingDevice(true);
-        // Assuming deleteDevice is a function that deletes the device and returns a promise
+        setDeletingDeviceId(id);
         deleteDevice(id).then(() => {
-            setDevices((prev) => prev.filter((device) => device.id !== id));
-        }).catch(() => {
-            // Handle error if needed
-            setIsDeletingDevice(false);
+            if (lastMessage?.type === 'device_removed') {
+                // Remove the device from your state/UI
+                setIsDeletingDevice(false);
+                setDeletingDeviceId(null);
+            }
         });
     };
 
@@ -86,7 +86,6 @@ export default function DevicesPage() {
         clearError();
         try {
             await connectDevice(id);
-            // status will be refreshed via fetchDevices -> fetchedDevices effect
         } catch {
             // connectDevice sets error and triggers fetchDevices if applicable
         }
@@ -133,9 +132,20 @@ export default function DevicesPage() {
                                             supported_features: device.properties?.supported_features || []
                                         }
                                     }}
-                                    onEdit={(id) =>
-                                        setEditingDevice(devices.find((d) => d.id === id) || null)
-                                    }
+                                    onEdit={(id) => {
+                                        const found = devices.find((d) => d.id === id);
+                                        setEditingDevice(
+                                            found
+                                                ? {
+                                                    ...found,
+                                                    properties: {
+                                                        capabilities: found.properties?.capabilities || [],
+                                                        supported_features: found.properties?.supported_features || []
+                                                    }
+                                                }
+                                                : null
+                                        );
+                                    }}
                                     onDelete={handleDeleteDevice}
                                     onConnect={handleConnectDevice}
                                 />

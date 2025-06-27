@@ -73,34 +73,44 @@ class ConnectionManager:
             # Add timestamp to message
             message["timestamp"] = datetime.utcnow().isoformat()
 
-            # Convert message to JSON
-            json_message = json.dumps(message)
+            # Convert message to JSON with datetime handling
+            def default_serializer(obj):
+                if isinstance(obj, datetime):
+                    return obj.isoformat()
+                raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+            json_message = json.dumps(message, default=default_serializer)
 
             logger.debug(f"WS → sending to {user_id}/{connection_type}: {message}")
 
             # Send to all connections of this type for this user
-            for connection in self.active_connections[user_id][connection_type]:
+            for connection in self.active_connections[user_id][connection_type][:]:
                 try:
                     await connection.send_text(json_message)
                 except Exception as e:
                     logger.error(f"Error sending message: {e}")
+                    await self.disconnect(connection, user_id, connection_type)
 
     async def broadcast(self, message: Dict[str, Any], connection_type: str):
         """Broadcast a message to all connections of a specific type."""
         # Add timestamp to message
         message["timestamp"] = datetime.utcnow().isoformat()
 
-        # Convert message to JSON
-        json_message = json.dumps(message)
+        # Convert message to JSON with datetime handling
+        def default_serializer(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+        json_message = json.dumps(message, default=default_serializer)
 
         # Send to all connections of this type
-        for user_id in self.active_connections:
+        for user_id in list(self.active_connections):
             if connection_type in self.active_connections[user_id]:
-                for connection in self.active_connections[user_id][connection_type]:
+                for connection in self.active_connections[user_id][connection_type][:]:
                     try:
                         await connection.send_text(json_message)
                     except Exception as e:
                         logger.error(f"Error broadcasting message: {e}")
+                        await self.disconnect(connection, user_id, connection_type)
 
 
 # Create global connection manager
@@ -154,7 +164,7 @@ async def handle_device_updates(websocket: WebSocket, user: User):
                 logger.warning(f"Invalid JSON received: {data}")
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, user_id, connection_type)
+        await manager.disconnect(websocket, user_id, connection_type)
 
 
 async def handle_automation_updates(websocket: WebSocket, user: User):
@@ -261,9 +271,19 @@ async def send_device_update(device: Device):
         "type": "device_update",
         "device_id": device.id,
         "name": device.name,
+        "type": device.type,
+        "manufacturer": device.manufacturer,
+        "model": device.model,
+        "location": device.location,
+        "ip_address": device.ip_address,
+        "mac_address": device.mac_address,
         "status": device.status,
+        "properties": device.properties,
         "state": device.state,
+        "created_at": device.created_at.isoformat(),
         "last_updated": device.last_updated.isoformat(),
+        "integration_type": device.integration_type,
+        "config": device.config,
     }
 
     await manager.send_personal_message(message, device.user_id, "devices")
@@ -283,11 +303,12 @@ async def send_event_notification(event: Event, user_id: str):
     message = {
         "type": "event_notification",
         "event_id": event.id,
+        "device_id": event.device_id,
         "event_type": event.type,
         "source": event.source,
-        "device_id": event.device_id,
         "data": event.data,
         "timestamp": event.timestamp.isoformat(),
+        "processed": event.processed,
     }
 
     await manager.send_personal_message(message, user_id, "events")

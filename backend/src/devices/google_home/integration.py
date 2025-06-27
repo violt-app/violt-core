@@ -879,6 +879,9 @@ class GoogleHomeIntegration(DeviceIntegration):
 
 
 # --- Register with Registry ---
-from ..registry import registry
+# from ..registry import registry
 
-registry.register_integration_class(GoogleHomeIntegration)
+# registry.register_integration_class(GoogleHomeIntegration)
+
+__all__ = ["GoogleHomeIntegration"]
+

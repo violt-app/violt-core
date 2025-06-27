@@ -32,6 +32,7 @@ from ..capabilities import (
     # MotionSensorCapability, # Add if needed for sensors
     VacuumCapability,
 )
+from ...database.crud import upsert_device_from_integration
 
 # Import websocket manager if needed for real-time updates *from* the integration
 # from ...core.websocket import manager as websocket_manager
@@ -285,6 +286,8 @@ class XiaomiVacuumCapability(VacuumCapability):
 XIAOMI_SERVICE_UUID = "fe95"
 XIAOMI_CHARACTERISTIC_UUID = "00001a00-0000-1000-8000-00805f9b34fb"
 
+
+from bleak import BleakScanner, BleakClient
 
 class XiaomiBLEIntegration(BleakIntegration):
     def __init__(self):
@@ -778,34 +781,20 @@ class XiaomiIntegration(DeviceIntegration):
             )
             if existing:
                 logger.warning(
-                    f"Device with IP {ip_address} already exists ({existing.id}). Updating."
-                )
-                # Optionally update existing device config instead of adding new
-                existing._token = token  # Update token
-                # Update other config fields?
-                if await existing.connect():  # Try reconnecting with new token
-                    return existing
-                else:
-                    raise DeviceIntegrationError(
-                        f"Failed to connect/update existing device at {ip_address}"
-                    )
-
-            # Create device instance
+                    f"Device with IP {ip_address} already exists ({existing.id}). Updating.")
             device = XiaomiDevice(
-                device_id=str(device_id),
-                name=device_config.get("name", f"Xiaomi Device {ip_address}"),
-                device_type=device_config.get(
-                    "type", "unknown"
-                ),  # Type might be refined on connect
-                model=device_config.get("model"),
-                location=device_config.get("location"),
+                device_id=device_id,
+                name=name,
+                device_type=device_type,
+                manufacturer=manufacturer,
+                model=model,
+                location=location,
                 ip_address=ip_address,
                 token=token,
             )
 
             # Attempt to connect
             if await device.connect():
-                # Refine type based on connection info if needed
                 if device.model and device.type == "unknown":
                     guessed_type = self._guess_type_from_model(device.model)
                     if guessed_type != "unknown":
@@ -813,31 +802,50 @@ class XiaomiIntegration(DeviceIntegration):
                             f"Refined device type for {device.name} to '{guessed_type}' based on model {device.model}"
                         )
                         device.type = guessed_type
-                        # Re-add capabilities based on refined type
                         device._add_capabilities_by_type(guessed_type)
-
                 self.devices[device.id] = device
                 logger.info(
                     f"Successfully added and connected to Xiaomi device: {device.name} ({device.id})"
                 )
-                return device
             else:
-                # Connection failed, don't add to active devices unless specifically desired
-                # Even if connection fails now, user might fix token later. Store it anyway?
-                # For now, let's only add if connection is successful initially.
-                # If adding without token, add it with offline_config status.
                 if token == "YOUR_XIAOMI_TOKEN_HERE":
                     device.set_status("offline_config")
-                    self.devices[device.id] = device  # Add but mark as needing config
                     logger.warning(
                         f"Added Xiaomi device {device.name} ({device.id}) but requires token configuration."
                     )
-                    return device
                 else:
-                    # Connection failed with a provided token
-                    raise DeviceIntegrationError(
-                        f"Failed to connect to device {ip_address} with the provided token."
+                    device.set_status("offline")
+                    logger.warning(
+                        f"Added Xiaomi device {device.name} ({device.id}) but connection failed; marked as offline."
                     )
+                self.devices[device.id] = device
+
+            # --- DB Sync: Ensure device exists in DB ---
+            if db is not None and user_id is not None:
+                device_db_data = {
+                    "id": device.id,
+                    "name": device.name,
+                    "type": device.type,
+                    "manufacturer": device.manufacturer,
+                    "model": device.model,
+                    "location": device.location,
+                    "ip_address": device.ip_address,
+                    "mac_address": getattr(device, "mac_address", None),
+                    "status": device.status,
+                    "properties": getattr(device, "properties", None),
+                    "state": getattr(device, "state", None),
+                    "integration_type": "xiaomi",
+                    "config": device_config,
+                }
+                try:
+                    await upsert_device_from_integration(db, device_db_data, user_id)
+                    logger.info(f"Ensured Xiaomi device {device.name} ({device.id}) is persisted in DB.")
+                except Exception as e:
+                    logger.error(f"Failed to persist Xiaomi device {device.name} ({device.id}) to DB: {e}")
+            else:
+                logger.warning(f"No DB session or user_id provided to XiaomiIntegration.add_device; DB sync skipped.")
+
+            return device
 
     async def remove_device(self, device_id: str) -> bool:
         """Remove a device instance."""
@@ -854,13 +862,17 @@ class XiaomiIntegration(DeviceIntegration):
 
 # --- Register with Registry ---
 from ..registry import registry
-
 registry.register_integration_class(XiaomiIntegration)
-registry.register_integration_class(XiaomiBLEIntegration)
+
+# registry.register_integration_class(XiaomiIntegration)
 # or by having the registry scan a specific directory.
 
 # Example registration (if registry is imported here):
 # from ..registry import registry
 
 # registry.register_integration_class(XiaomiIntegration)
-# registry.register_integration_class(XiaomiBLEIntegration)
+
+# If BLE integration is needed, import from bleak.xiaomi:
+# from ..bleak.xiaomi import XiaomiBLEIntegration
+
+__all__ = ["XiaomiIntegration"]
