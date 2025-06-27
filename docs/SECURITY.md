@@ -88,5 +88,16 @@ You can view all past and active security disclosures via our [Security Advisory
 
 ---
 
+We request:
+- At least **90 days embargo** before public disclosure
+- Clear reproduction steps
+- CVSS v3.1 vector (if known)
+
+We aim to respond within **7 business days**.
+
+Your efforts are valued and will be acknowledged if confirmed.
+
+---
+
 For any questions or responsible disclosure concerns, please contact the core team directly at:  
 📧 **security@violt.app**
