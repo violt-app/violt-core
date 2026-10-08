@@ -1,0 +1,17 @@
+name: 📝 Documentation Request
+description: Suggest a fix or addition to documentation.
+title: "[Docs]: "
+labels: [documentation]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Affected Page or Section
+  - type: textarea
+    id: issue
+    attributes:
+      label: What’s Missing or Unclear
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Fix or Addition

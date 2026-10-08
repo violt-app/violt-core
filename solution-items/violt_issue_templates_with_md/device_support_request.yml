@@ -1,0 +1,21 @@
+name: 📡 Device Support Request
+description: Request support for a new device.
+title: "[Device]: "
+labels: [device-support]
+body:
+  - type: input
+    id: device
+    attributes:
+      label: Manufacturer / Model
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware Version
+  - type: input
+    id: region
+    attributes:
+      label: Region or Variant
+  - type: textarea
+    id: connection
+    attributes:
+      label: Connection Method (e.g., Zigbee, Wi-Fi)

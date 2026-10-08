@@ -1,0 +1,22 @@
+name: 🔌 Integration Request
+description: Request integration with a new device or system.
+title: "[Integration]: "
+labels: [integration]
+body:
+  - type: input
+    id: device
+    attributes:
+      label: Device Name and Model
+  - type: input
+    id: protocol
+    attributes:
+      label: Communication Protocol
+      placeholder: Zigbee, Z-Wave, Wi-Fi, etc.
+  - type: input
+    id: docs
+    attributes:
+      label: Documentation Link (if available)
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use Case for Violt

@@ -1,0 +1,26 @@
+name: 🤖 AI Model Feedback
+description: Report behavior or suggestions for Violt AI.
+title: "[AI Feedback]: "
+labels: [ai]
+body:
+  - type: textarea
+    id: action
+    attributes:
+      label: What the AI Did
+  - type: textarea
+    id: expected
+    attributes:
+      label: What It Should Have Done
+  - type: textarea
+    id: context
+    attributes:
+      label: Automation Context
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feedback Category
+      options:
+        - Energy Efficiency
+        - Scheduling
+        - Anomaly Detection
+        - Voice/NLP

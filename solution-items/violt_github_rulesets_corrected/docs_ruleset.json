@@ -1,0 +1,23 @@
+{
+  "name": "docs branch governance",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "docs"
+      ],
+      "exclude": []
+    },
+    "pull_request": {
+      "required_approving_review_count": 1,
+      "require_code_owner_review": false,
+      "dismiss_stale_reviews": false
+    }
+  },
+  "actions": {
+    "allows_force_pushes": false,
+    "allows_deletions": false,
+    "allows_fork_syncing": true
+  }
+}

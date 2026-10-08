@@ -1,0 +1,17 @@
+name: 🔁 Automation Logic Issue
+description: Report unexpected behavior in automation rules.
+title: "[Automation]: "
+labels: [automation]
+body:
+  - type: textarea
+    id: yaml
+    attributes:
+      label: Automation Configuration (YAML/JSON)
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What Happened vs Expected
+  - type: textarea
+    id: logs
+    attributes:
+      label: Event Logs or Traces

@@ -1,0 +1,47 @@
+name: 🐞 Bug Report
+description: Report a problem with Violt Core or Violt AI.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Please fill out the following information so we can investigate the issue."
+  - type: input
+    id: version
+    attributes:
+      label: Violt Version
+      description: What version of Violt are you using?
+      placeholder: "e.g., Core 1.2.3 or AI 0.9.1"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Describe the bug and what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide a detailed list of steps to reproduce the issue.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+        4. See error
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Console Output
+      description: Include logs or console output if available.
+      render: shell
+  - type: input
+    id: system
+    attributes:
+      label: Environment
+      description: OS, browser/device, etc.
+      placeholder: "Ubuntu 22.04, Chrome 123, Pixel 8"

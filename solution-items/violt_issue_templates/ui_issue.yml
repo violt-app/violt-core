@@ -1,0 +1,17 @@
+name: 🎨 UI/UX Issue
+description: Report visual or layout problems in the interface.
+title: "[UI]: "
+labels: [ui]
+body:
+  - type: input
+    id: platform
+    attributes:
+      label: Platform (Web, Mobile, AI)
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshots or Visuals

@@ -1,0 +1,24 @@
+{
+  "name": "feature branch guidance",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "feature/*"
+      ],
+      "exclude": []
+    },
+    "required_status_checks": {
+      "strict": false,
+      "contexts": [
+        "ci/test"
+      ]
+    }
+  },
+  "actions": {
+    "allows_force_pushes": true,
+    "allows_deletions": false,
+    "allows_fork_syncing": true
+  }
+}

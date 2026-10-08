@@ -1,0 +1,9 @@
+name: 💬 Other Feedback
+description: General feedback or ideas that don’t fit other categories.
+title: "[Feedback]: "
+labels: [feedback]
+body:
+  - type: textarea
+    id: content
+    attributes:
+      label: Your Feedback or Suggestion

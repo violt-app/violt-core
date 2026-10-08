@@ -1,0 +1,32 @@
+{
+  "name": "dev branch protection",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "dev"
+      ],
+      "exclude": []
+    },
+    "pull_request": {
+      "required_approving_review_count": 1,
+      "require_code_owner_review": false,
+      "dismiss_stale_reviews": true
+    },
+    "required_status_checks": {
+      "strict": false,
+      "contexts": [
+        "ci/test",
+        "ci/build"
+      ]
+    },
+    "required_linear_history": false,
+    "required_conversation_resolution": false
+  },
+  "actions": {
+    "allows_force_pushes": false,
+    "allows_deletions": false,
+    "allows_fork_syncing": true
+  }
+}
